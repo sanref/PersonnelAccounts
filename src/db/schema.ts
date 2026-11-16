@@ -8,6 +8,7 @@ import {
   date,
   timestamp,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -166,3 +167,48 @@ export const monthlyItemsRelations = relations(monthlyItems, ({ one }) => ({
     references: [transactions.id],
   }),
 }));
+
+export const notificationSettings = pgTable("notification_settings", {
+  id: serial("id").primaryKey(),
+  enabled: boolean("enabled").notNull().default(true),
+  notifyTime: text("notify_time").notNull().default("09:00"), // HH:MM (24h)
+  timezone: text("timezone")
+    .notNull()
+    .default("America/Argentina/Buenos_Aires"),
+  daysBefore: integer("days_before").notNull().default(3), // 0..15
+  notifyOnDueDay: boolean("notify_on_due_day").notNull().default(true),
+  notifyOverdue: boolean("notify_overdue").notNull().default(false),
+  vapidPublicKey: text("vapid_public_key"),
+  vapidPrivateKey: text("vapid_private_key"),
+  cronSecret: text("cron_secret"),
+  lastCheckedAt: timestamp("last_checked_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  deviceLabel: text("device_label"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const notificationDeliveries = pgTable(
+  "notification_deliveries",
+  {
+    id: serial("id").primaryKey(),
+    monthlyItemId: integer("monthly_item_id")
+      .notNull()
+      .references(() => monthlyItems.id, { onDelete: "cascade" }),
+    triggerDate: text("trigger_date").notNull(), // YYYY-MM-DD
+    reason: text("reason").notNull(), // 'BEFORE' | 'DUE_TODAY' | 'OVERDUE'
+    sentAt: timestamp("sent_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("notif_delivery_item_date_uidx").on(
+      t.monthlyItemId,
+      t.triggerDate
+    ),
+  ]
+);

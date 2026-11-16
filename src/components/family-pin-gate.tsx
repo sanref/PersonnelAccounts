@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import { verifyFamilyPinAction } from "@/app/actions";
+import { FontSizeControl } from "@/components/font-size-control";
 
 export function FamilyPinGate({
   personName,
@@ -34,16 +35,19 @@ export function FamilyPinGate({
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl border border-slate-200 p-6 max-w-xs w-full space-y-4 shadow-sm"
+        className="bg-white rounded-2xl border border-slate-200 p-6 max-w-sm w-full space-y-4 shadow-sm"
       >
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center">
-            <Lock className="w-4 h-4" />
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 shrink-0 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+              <Lock className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="font-bold text-slate-900">Cuenta de {personName}</h1>
+              <p className="text-xs text-slate-500">Ingresá tu contraseña para ver el resumen</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-slate-900">Cuenta de {personName}</h1>
-            <p className="text-xs text-slate-500">Ingresá tu contraseña para ver el resumen</p>
-          </div>
+          <FontSizeControl variant="inline" />
         </div>
 
         <input
@@ -53,7 +57,7 @@ export function FamilyPinGate({
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           placeholder="Contraseña..."
-          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-center text-base"
+          className="w-full min-h-11 px-3.5 py-2.5 rounded-xl border border-slate-300 text-center text-base"
         />
 
         {error && (
@@ -65,7 +69,7 @@ export function FamilyPinGate({
         <button
           type="submit"
           disabled={isPending}
-          className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 cursor-pointer"
+          className="w-full min-h-11 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 cursor-pointer"
         >
           {isPending ? "Verificando..." : "Ver resumen"}
         </button>

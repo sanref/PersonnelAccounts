@@ -11,11 +11,18 @@ import {
   Wallet,
 } from "lucide-react";
 import { logoutAdminAction } from "@/app/actions";
+import { FontSizeControl } from "@/components/font-size-control";
+import { NotificationBell } from "@/components/notification-bell";
+import type { DueAlertItem, PublicNotificationSettings } from "@/lib/notifications";
 
 export function NavShell({
   peopleLinks,
+  notificationAlerts,
+  notificationSettings,
 }: {
   peopleLinks: Array<{ slug: string; name: string }>;
+  notificationAlerts: DueAlertItem[];
+  notificationSettings: PublicNotificationSettings;
 }) {
   const pathname = usePathname();
 
@@ -87,10 +94,17 @@ export function NavShell({
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="hidden md:block">
+              <FontSizeControl variant="inline" />
+            </div>
+            <NotificationBell
+              alerts={notificationAlerts}
+              settings={notificationSettings}
+            />
             <a
               href="/api/export"
               title="Descargar Backup Excel (.xlsx)"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-700 hover:bg-slate-100 transition"
+              className="inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-700 hover:bg-slate-100 transition"
             >
               <Download className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Excel</span>
@@ -99,7 +113,7 @@ export function NavShell({
               <button
                 type="submit"
                 title="Cerrar sesión"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 min-h-10 min-w-10 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -108,11 +122,14 @@ export function NavShell({
         </div>
       </header>
 
+      {/* Control flotante de tamaño de letra para celular */}
+      <FontSizeControl variant="floating" />
+
       {/* Barra inferior para celular */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 flex items-center justify-around py-2 px-1 text-xs">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 flex items-center justify-around py-1.5 px-1 text-xs">
         <Link
           href="/"
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg ${
+          className={`flex flex-col items-center justify-center min-h-12 gap-0.5 px-4 py-1 rounded-lg ${
             isHome ? "text-slate-900 font-semibold" : "text-slate-500"
           }`}
         >
@@ -121,7 +138,7 @@ export function NavShell({
         </Link>
         <Link
           href="/pagos"
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg ${
+          className={`flex flex-col items-center justify-center min-h-12 gap-0.5 px-4 py-1 rounded-lg ${
             isPagos ? "text-slate-900 font-semibold" : "text-slate-500"
           }`}
         >
@@ -130,7 +147,7 @@ export function NavShell({
         </Link>
         <Link
           href="/config"
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg ${
+          className={`flex flex-col items-center justify-center min-h-12 gap-0.5 px-4 py-1 rounded-lg ${
             isConfig ? "text-slate-900 font-semibold" : "text-slate-500"
           }`}
         >

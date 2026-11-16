@@ -5,7 +5,16 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { db, people, accounts, transactions, services, monthlyItems } from "@/db";
+import {
+  db,
+  people,
+  accounts,
+  transactions,
+  services,
+  monthlyItems,
+  notificationSettings,
+  pushSubscriptions,
+} from "@/db";
 import {
   ADMIN_COOKIE,
   VIEWER_PIN_COOKIE_PREFIX,
@@ -14,6 +23,11 @@ import {
   signPinToken,
 } from "@/lib/auth";
 import { formatPeriodLabel, shiftPeriod, todayISO } from "@/lib/format";
+import {
+  dispatchDueNotifications,
+  getOrCreateNotificationSettings,
+  sendTestPushNotification,
+} from "@/lib/notifications";
 
 function slugify(text: string): string {
   return text
@@ -495,6 +509,45 @@ export async function toggleServiceArrearsAction(
   revalidateAll();
 }
 
+export async function updateServiceDueDayAction(
+  id: number,
+  defaultDueDay: number | null
+) {
+  await requireAdmin();
+  const safeDay =
+    defaultDueDay !== null &&
+    Number.isFinite(defaultDueDay) &&
+    defaultDueDay >= 1 &&
+    defaultDueDay <= 31
+      ? Math.round(defaultDueDay)
+      : null;
+
+  await db
+    .update(services)
+    .set({ defaultDueDay: safeDay })
+    .where(eq(services.id, id));
+
+  if (safeDay !== null) {
+    const pendingItems = await db.query.monthlyItems.findMany({
+      where: and(
+        eq(monthlyItems.serviceId, id),
+        eq(monthlyItems.status, "PENDING")
+      ),
+    });
+
+    await Promise.all(
+      pendingItems.map((item) =>
+        db
+          .update(monthlyItems)
+          .set({ dueDate: clampDayForPeriod(item.period, safeDay) })
+          .where(eq(monthlyItems.id, item.id))
+      )
+    );
+  }
+
+  revalidateAll();
+}
+
 export async function deleteServiceAction(id: number) {
   await requireAdmin();
   await db.delete(services).where(eq(services.id, id));
@@ -740,4 +793,98 @@ export async function settlePersonMonthSummaryAction(input: {
 
   revalidateAll();
   return { total, count: validItems.length };
+}
+
+// ==========================================
+// NOTIFICACIONES DE VENCIMIENTOS (PUSH + CAMPANITA)
+// ==========================================
+
+export async function updateNotificationSettingsAction(input: {
+  enabled: boolean;
+  notifyTime: string;
+  daysBefore: number;
+  notifyOnDueDay: boolean;
+  notifyOverdue: boolean;
+}) {
+  await requireAdmin();
+  const current = await getOrCreateNotificationSettings();
+
+  const rawTime = (input.notifyTime ?? "09:00").trim();
+  const validTime = /^\d{2}:\d{2}$/.test(rawTime) ? rawTime : "09:00";
+  const safeDays = Math.max(0, Math.min(30, Math.round(Number(input.daysBefore) || 0)));
+
+  await db
+    .update(notificationSettings)
+    .set({
+      enabled: Boolean(input.enabled),
+      notifyTime: validTime,
+      daysBefore: safeDays,
+      notifyOnDueDay: Boolean(input.notifyOnDueDay),
+      notifyOverdue: Boolean(input.notifyOverdue),
+      updatedAt: new Date(),
+    })
+    .where(eq(notificationSettings.id, current.id));
+
+  revalidateAll();
+}
+
+export async function savePushSubscriptionAction(input: {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  deviceLabel?: string;
+}) {
+  await requireAdmin();
+  const endpoint = input.endpoint?.trim();
+  const p256dh = input.p256dh?.trim();
+  const auth = input.auth?.trim();
+  if (!endpoint || !p256dh || !auth) {
+    throw new Error("Datos de suscripción Push incompletos");
+  }
+
+  const label = input.deviceLabel?.trim() || "Dispositivo";
+  const existing = await db.query.pushSubscriptions.findFirst({
+    where: eq(pushSubscriptions.endpoint, endpoint),
+  });
+
+  if (existing) {
+    await db
+      .update(pushSubscriptions)
+      .set({ p256dh, auth, deviceLabel: label })
+      .where(eq(pushSubscriptions.id, existing.id));
+  } else {
+    await db.insert(pushSubscriptions).values({
+      endpoint,
+      p256dh,
+      auth,
+      deviceLabel: label,
+    });
+  }
+
+  revalidateAll();
+}
+
+export async function deletePushSubscriptionAction(input: {
+  id?: number;
+  endpoint?: string;
+}) {
+  await requireAdmin();
+  if (input.id) {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, input.id));
+  } else if (input.endpoint) {
+    await db
+      .delete(pushSubscriptions)
+      .where(eq(pushSubscriptions.endpoint, input.endpoint));
+  }
+  revalidateAll();
+}
+
+export async function sendTestNotificationAction() {
+  await requireAdmin();
+  return sendTestPushNotification();
+}
+
+export async function triggerDueNotificationsNowAction() {
+  await requireAdmin();
+  return dispatchDueNotifications({ force: true });
 }

@@ -613,7 +613,7 @@ export function MonthlyPaymentsClient({
                       ))}
                     </select>
                   </th>
-                  <th className="px-2 py-2 text-[11px] font-normal text-slate-400">
+                  <th className="px-2 py-2 text-[0.6875rem] font-normal text-slate-400">
                     Clic en fecha p/ editar
                   </th>
                   <th className="px-2 py-2">
@@ -737,7 +737,7 @@ export function MonthlyPaymentsClient({
                             </span>
 
                             {item.isCarryOver && (
-                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-950">
+                              <span className="text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-950">
                                 Impago de {formatShortPeriodLabel(item.period)}
                               </span>
                             )}
@@ -749,20 +749,20 @@ export function MonthlyPaymentsClient({
                                 )} pero corresponde al período ${formatPeriodLabel(
                                   effectiveBilledPeriod
                                 )}`}
-                                className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/80"
+                                className="text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/80"
                               >
                                 Período {formatShortPeriodLabel(effectiveBilledPeriod)}
                               </span>
                             )}
 
                             {item.kind === "EXTRA" && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                              <span className="text-[0.625rem] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
                                 Extra
                               </span>
                             )}
                           </div>
                           {item.notes && (
-                            <p className="text-[11px] text-slate-400 mt-0.5">
+                            <p className="text-[0.6875rem] text-slate-400 mt-0.5">
                               {item.notes}
                             </p>
                           )}
@@ -793,7 +793,7 @@ export function MonthlyPaymentsClient({
 
                         <td className="px-3 py-2.5 text-center whitespace-nowrap">
                           {item.settledTransactionId ? (
-                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                            <span className="text-[0.6875rem] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
                               Descontado
                               {item.settledTransaction?.account?.name
                                 ? ` (${item.settledTransaction.account.name})`
@@ -804,7 +804,7 @@ export function MonthlyPaymentsClient({
                               type="button"
                               onClick={() => handleSettleSingleItem(item)}
                               title="Descontar este ítem directo en la cuenta de la persona"
-                              className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white transition cursor-pointer"
+                              className="inline-flex items-center gap-1 text-[0.6875rem] font-medium px-2 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white transition cursor-pointer"
                             >
                               <ArrowDownToLine className="w-3 h-3" />
                               Descontar
@@ -894,17 +894,17 @@ export function MonthlyPaymentsClient({
                                 {it.concept}
                               </span>
                               {isArrears && it.billedPeriod && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold">
+                                <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold">
                                   {formatShortPeriodLabel(it.billedPeriod)}
                                 </span>
                               )}
                               {it.kind === "EXTRA" && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
+                                <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
                                   Extra
                                 </span>
                               )}
                               {it.settledTransactionId && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">
+                                <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">
                                   Descontado
                                 </span>
                               )}
@@ -1069,14 +1069,14 @@ export function MonthlyPaymentsClient({
               <button
                 type="button"
                 onClick={() => setExtraOpen(false)}
-                className="px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="min-h-11 px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={isPending}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
               >
                 Guardar
               </button>
@@ -1160,14 +1160,14 @@ export function MonthlyPaymentsClient({
               <button
                 type="button"
                 onClick={() => setSettleModalPerson(null)}
-                className="px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="min-h-11 px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={isPending}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
               >
                 Confirmar descuento
               </button>

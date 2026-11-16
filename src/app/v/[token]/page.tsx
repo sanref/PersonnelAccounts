@@ -6,6 +6,7 @@ import { VIEWER_PIN_COOKIE_PREFIX, verifyPinToken } from "@/lib/auth";
 import { formatMoney, formatPeriodLabel } from "@/lib/format";
 import { FamilyPinGate } from "@/components/family-pin-gate";
 import { FamilyLedgerTable } from "@/components/family-ledger-table";
+import { FontSizeControl } from "@/components/font-size-control";
 
 export const dynamic = "force-dynamic";
 
@@ -36,17 +37,23 @@ export default async function FamilySharedViewPage({
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-slate-900">
-            <span className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 min-h-14 py-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 font-bold text-slate-900 min-w-0">
+            <span className="w-7 h-7 shrink-0 rounded-lg bg-slate-900 text-white flex items-center justify-center">
               <Wallet className="w-4 h-4" />
             </span>
-            <span>Resumen de Cuenta · {person.name}</span>
+            <span className="truncate">
+              <span className="hidden sm:inline">Resumen de Cuenta · </span>
+              {person.name}
+            </span>
           </div>
-          <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">
-            Solo lectura
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <FontSizeControl variant="inline" />
+            <span className="hidden sm:inline-block text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">
+              Solo lectura
+            </span>
+          </div>
         </div>
       </header>
 

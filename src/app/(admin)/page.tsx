@@ -72,13 +72,13 @@ export default async function DashboardPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-lg font-bold text-slate-900">{p.name}</h2>
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                      <span className="text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                         {p.defaultCurrency}
                       </span>
                       {p.shareEnabled && (
                         <span
                           title="Acceso familiar habilitado"
-                          className="inline-flex items-center gap-1 text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full"
+                          className="inline-flex items-center gap-1 text-[0.6875rem] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full"
                         >
                           <Share2 className="w-3 h-3" />
                           Compartido
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
                   <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2">
                     {p.accounts.map((acc) => (
                       <div key={acc.id} className="bg-slate-50 rounded-xl px-3 py-2">
-                        <p className="text-[11px] text-slate-500 font-medium truncate">
+                        <p className="text-[0.6875rem] text-slate-500 font-medium truncate">
                           {acc.name}
                         </p>
                         <p className="text-xs sm:text-sm font-semibold text-slate-800 mt-0.5">
@@ -215,12 +215,12 @@ export default async function DashboardPage() {
                   </span>
                   <span className="font-medium text-slate-800 truncate">{b.concept}</span>
                   {b.isCarryOver && (
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                    <span className="text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
                       Impago {formatShortPeriodLabel(b.period)}
                     </span>
                   )}
                   {b.billedPeriod && b.billedPeriod !== b.period && (
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+                    <span className="text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
                       Período {formatShortPeriodLabel(b.billedPeriod)}
                     </span>
                   )}

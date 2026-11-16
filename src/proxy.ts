@@ -5,11 +5,15 @@ import { ADMIN_COOKIE, verifyAdminToken } from "@/lib/auth";
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Rutas públicas: login, vista compartida de familiares (/v/...), archivos PWA/iconos
+  // Rutas públicas: login, vista compartida de familiares (/v/...), PWA/Service Worker y cron protegido por token propio
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/v/") ||
-    pathname === "/manifest.webmanifest"
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js" ||
+    pathname.startsWith("/icon") ||
+    pathname.startsWith("/apple-icon") ||
+    pathname.startsWith("/api/cron/notifications")
   ) {
     return NextResponse.next();
   }
@@ -29,5 +33,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

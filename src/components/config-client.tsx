@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import type { AccountSummary, PersonCardSummary } from "@/lib/queries";
+import type { PublicNotificationSettings } from "@/lib/notifications";
 import {
   createPersonAction,
   updatePersonAction,
@@ -28,10 +29,12 @@ import {
   createServiceAction,
   toggleServiceActiveAction,
   toggleServiceArrearsAction,
+  updateServiceDueDayAction,
   deleteServiceAction,
 } from "@/app/actions";
 import { formatMoney, formatNumberAR, parseMoneyInput } from "@/lib/format";
 import { MoneyInput, ToggleSwitch } from "@/components/ui-controls";
+import { NotificationSettingsCard } from "@/components/notification-settings-card";
 
 interface ServiceItem {
   id: number;
@@ -48,9 +51,18 @@ interface ServiceItem {
 export function ConfigClient({
   people,
   services,
+  notificationSettings,
+  notificationDevices,
 }: {
   people: PersonCardSummary[];
   services: ServiceItem[];
+  notificationSettings: PublicNotificationSettings;
+  notificationDevices: Array<{
+    id: number;
+    endpoint: string;
+    deviceLabel: string;
+    createdAt: string;
+  }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -270,12 +282,18 @@ export function ConfigClient({
 
         <a
           href="/api/export"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition self-start"
+          className="inline-flex items-center gap-2 min-h-11 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition self-start"
         >
           <Download className="w-4 h-4" />
           Descargar Backup Completo (.xlsx)
         </a>
       </div>
+
+      {/* SECCIÓN NOTIFICACIONES DE VENCIMIENTOS */}
+      <NotificationSettingsCard
+        settings={notificationSettings}
+        devices={notificationDevices}
+      />
 
       {/* SECCIÓN 1: PERSONAS, CONTRASEÑAS Y SUBCUENTAS */}
       <section className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 space-y-5">
@@ -304,7 +322,7 @@ export function ConfigClient({
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-slate-900">{p.name}</h3>
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                        <span className="text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                           {p.defaultCurrency}
                         </span>
                       </div>
@@ -339,16 +357,16 @@ export function ConfigClient({
                   {/* Estado de acceso familiar */}
                   <div className="pt-1">
                     {!p.shareEnabled ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                      <span className="inline-flex items-center gap-1 text-[0.6875rem] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
                         Acceso familiar desactivado
                       </span>
                     ) : hasPassword ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                      <span className="inline-flex items-center gap-1 text-[0.6875rem] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
                         <KeyRound className="w-3 h-3" />
                         Con contraseña asignada
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-800">
+                      <span className="inline-flex items-center gap-1 text-[0.6875rem] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-800">
                         Link activo (sin contraseña aún)
                       </span>
                     )}
@@ -417,7 +435,7 @@ export function ConfigClient({
             <button
               type="submit"
               disabled={isPending}
-              className="w-full px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 cursor-pointer"
+              className="w-full min-h-11 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 cursor-pointer"
             >
               + Crear Persona
             </button>
@@ -496,7 +514,7 @@ export function ConfigClient({
               <button
                 type="submit"
                 disabled={isPending}
-                className="px-3.5 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 shrink-0 cursor-pointer inline-flex items-center gap-1"
+                className="min-h-11 px-3.5 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 shrink-0 cursor-pointer inline-flex items-center gap-1"
               >
                 <Plus className="w-4 h-4" />
                 Agregar
@@ -558,7 +576,7 @@ export function ConfigClient({
                     className="w-full px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400"
                   />
                 </th>
-                <th className="px-3 py-2 text-center text-[11px] font-normal text-slate-400">
+                <th className="px-3 py-2 text-center text-[0.6875rem] font-normal text-slate-400">
                   Día del mes
                 </th>
                 <th className="px-3 py-2">
@@ -611,8 +629,33 @@ export function ConfigClient({
                       <span className="text-xs text-slate-400 ml-2">· {srv.notes}</span>
                     )}
                   </td>
-                  <td className="px-3 py-3 text-center text-xs text-slate-500">
-                    {srv.defaultDueDay ? `Día ${srv.defaultDueDay}` : "—"}
+                  <td className="px-3 py-3 text-center text-xs text-slate-600">
+                    <div className="inline-flex items-center justify-center gap-1">
+                      <span className="text-slate-400">Día</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={31}
+                        defaultValue={srv.defaultDueDay ?? ""}
+                        placeholder="—"
+                        title="Cambiar día de vencimiento mensual (1 a 31)"
+                        onBlur={(e) => {
+                          const raw = e.target.value.trim();
+                          const nextVal = raw === "" ? null : Number(raw);
+                          if (nextVal === (srv.defaultDueDay ?? null)) return;
+                          startTransition(async () => {
+                            await updateServiceDueDayAction(srv.id, nextVal);
+                            router.refresh();
+                          });
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        className="w-14 px-2 py-1 text-center rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-800 tabular-nums focus:outline-none focus:border-slate-900"
+                      />
+                    </div>
                   </td>
                   <td className="px-3 py-3 text-center">
                     <div className="inline-flex justify-center">
@@ -776,7 +819,7 @@ export function ConfigClient({
                           )}
                         </button>
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-1">
+                      <p className="text-[0.6875rem] text-slate-500 mt-1">
                         Con esta contraseña puede entrar en <strong>/login → Acceso Familiar</strong>{" "}
                         escribiendo su nombre (<strong>{epName}</strong>) y su clave. Si la dejás
                         vacía, podrá entrar directo solo con el link privado.
@@ -792,7 +835,7 @@ export function ConfigClient({
                           <button
                             type="button"
                             onClick={handleRegenerateLink}
-                            className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-rose-600 cursor-pointer"
+                            className="inline-flex items-center gap-1 text-[0.6875rem] text-slate-500 hover:text-rose-600 cursor-pointer"
                           >
                             <RefreshCw className="w-3 h-3" />
                             Cambiar link
@@ -846,14 +889,14 @@ export function ConfigClient({
                   <button
                     type="button"
                     onClick={() => setEditingPerson(null)}
-                    className="px-3.5 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                    className="min-h-11 px-3.5 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                    className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
                   >
                     Guardar cambios
                   </button>

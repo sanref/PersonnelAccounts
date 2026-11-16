@@ -150,7 +150,7 @@ export function FamilyLedgerTable({
                   <td className="px-4 py-2.5">
                     <div className="font-medium text-slate-900">{row.concept}</div>
                     {row.refAmount && row.refCurrency && (
-                      <span className="text-[11px] text-slate-500">
+                      <span className="text-[0.6875rem] text-slate-500">
                         Ref: {formatMoney(row.refAmount, row.refCurrency)}
                       </span>
                     )}

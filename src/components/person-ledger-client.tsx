@@ -674,12 +674,12 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                           <div className="font-medium text-slate-900">{row.concept}</div>
                           <div className="flex flex-wrap gap-2 mt-0.5">
                             {row.refAmount && row.refCurrency && (
-                              <span className="text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                              <span className="text-[0.6875rem] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                                 Ref: {formatMoney(row.refAmount, row.refCurrency)}
                               </span>
                             )}
                             {row.type === "YIELD" && (
-                              <span className="text-[11px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                              <span className="text-[0.6875rem] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
                                 Rendimiento
                               </span>
                             )}
@@ -772,7 +772,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                     <span className="truncate">
                       {it.concept}
                       {it.kind === "EXTRA" && (
-                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">
+                        <span className="ml-1.5 text-[0.625rem] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">
                           Extra
                         </span>
                       )}
@@ -915,7 +915,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
               {txType !== "TRANSFER" && (
                 <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                   <div className="col-span-2">
-                    <label className="block text-[11px] font-medium text-slate-500 mb-1">
+                    <label className="block text-[0.6875rem] font-medium text-slate-500 mb-1">
                       Monto original otra moneda (opcional)
                     </label>
                     <MoneyInput
@@ -926,7 +926,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-500 mb-1">
+                    <label className="block text-[0.6875rem] font-medium text-slate-500 mb-1">
                       Moneda ref.
                     </label>
                     <select
@@ -964,14 +964,14 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                 <button
                   type="button"
                   onClick={() => setTxModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
+                  className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
                 >
                   {isPending ? "Guardando..." : "Guardar"}
                 </button>
@@ -1135,14 +1135,14 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
               <button
                 type="button"
                 onClick={() => setNewAccOpen(false)}
-                className="px-3.5 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="min-h-11 px-3.5 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={isPending}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
               >
                 Crear
               </button>

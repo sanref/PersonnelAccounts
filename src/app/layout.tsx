@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "MultiCuentas · Administración Familiar",
   description: "Cuentas administradas, saldos y pagos mensuales",
+  appleWebApp: {
+    capable: true,
+    title: "MultiCuentas",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
@@ -22,6 +27,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   themeColor: "#0f172a",
 };
+
+const fontInitScript = `(function(){try{var s=localStorage.getItem("mc_font_size");if(s==="normal"||s==="grande"||s==="muy-grande"){document.documentElement.setAttribute("data-font",s);}}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -31,8 +38,12 @@ export default function RootLayout({
   return (
     <html
       lang="es"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: fontInitScript }} />
+      </head>
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
         {children}
       </body>

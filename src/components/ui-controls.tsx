@@ -33,7 +33,7 @@ export function ToggleSwitch({
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`inline-flex items-center gap-2 select-none ${
+      className={`inline-flex items-center gap-2 min-h-9 py-1.5 select-none ${
         disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
       }`}
     >
@@ -111,7 +111,7 @@ export function MoneyInput({
           }
         }}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full pl-10 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+        className="w-full min-h-11 pl-10 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
       />
     </div>
   );
