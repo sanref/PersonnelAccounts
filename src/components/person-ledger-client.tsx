@@ -373,7 +373,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
               {person.defaultCurrency}
             </span>
           </div>
-          <p className="mt-4 text-xs text-slate-500">Saldo disponible</p>
+          <p className="mt-4 text-xs text-slate-600">Saldo disponible</p>
           <p
             className={`break-words text-3xl font-semibold tracking-tight mt-1 tabular-nums ${
               isNegative ? "text-rose-600" : "text-slate-900"
@@ -437,7 +437,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
             className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium border transition cursor-pointer ${
               selectedAccountId === "ALL"
                 ? "bg-slate-100 text-slate-900 border-slate-300"
-                : "bg-white text-slate-700 border-slate-200 hover:border-slate-400"
+                : "bg-white text-slate-700 border-slate-300 hover:border-slate-400"
             }`}
           >
             Todas ({formatMoney(detail.totalBalance, person.defaultCurrency)})
@@ -457,7 +457,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
               className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium border transition cursor-pointer ${
                 active
                   ? "bg-slate-100 text-slate-900 border-slate-300"
-                  : "bg-white text-slate-700 border-slate-200 hover:border-slate-400"
+                  : "bg-white text-slate-700 border-slate-300 hover:border-slate-400"
               }`}
             >
               {acc.name}:{" "}
@@ -470,7 +470,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
         <button
           type="button"
           onClick={() => setNewAccOpen(true)}
-          className="px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-white border border-dashed border-slate-300 transition cursor-pointer"
+          className="px-3 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-white border border-dashed border-slate-300 transition cursor-pointer"
         >
           + Subcuenta
         </button>
@@ -485,7 +485,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${
               activeTab === "movimientos"
                 ? "border-slate-900 text-slate-900"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+                : "border-transparent text-slate-600 hover:text-slate-800"
             }`}
           >
             Movimientos ({activeRows.length})
@@ -496,7 +496,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${
               activeTab === "resumenes"
                 ? "border-slate-900 text-slate-900"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+                : "border-transparent text-slate-600 hover:text-slate-800"
             }`}
           >
             Resúmenes de Servicios ({detail.monthlySummaries.length})
@@ -507,7 +507,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
       {activeTab === "movimientos" ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
           {/* Barra resumen dinámica de las filas filtradas */}
-          <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
             <div className="flex flex-wrap items-center gap-3 tabular-nums">
               <span>
                 Mostrando <strong>{filteredRows.length}</strong> de{" "}
@@ -542,7 +542,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
           </div>
 
           <div className="md:hidden">
-            <div className="space-y-3 border-b border-slate-100 p-4">
+            <div className="space-y-3 border-b border-slate-200 p-4">
               <label className="field-label">
                 Buscar movimiento
                 <input
@@ -614,7 +614,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                 </div>
               </details>
             </div>
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-200">
               {filteredRows.map((row) => (
                 <article key={row.id} className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -622,7 +622,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                       <p className="break-words text-sm font-medium">
                         {row.concept}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-slate-600">
                         {row.accountName}
                       </p>
                     </div>
@@ -631,13 +631,13 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                         {row.signedAmount > 0 ? "+" : "−"}
                         {formatMoney(row.amount, row.currency)}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-slate-600">
                         {formatDateAR(row.date, row.dateUnknown)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-slate-500 tabular-nums">
+                    <span className="text-xs text-slate-600 tabular-nums">
                       Saldo: {formatMoney(row.runningBalance, row.currency)}
                     </span>
                     <div className="flex">
@@ -664,7 +664,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                     </div>
                   </div>
                   {row.notes && (
-                    <p className="break-words text-xs text-slate-500">
+                    <p className="break-words text-xs text-slate-600">
                       {row.notes}
                     </p>
                   )}
@@ -673,7 +673,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
             </div>
             {filteredRows.length === 0 && (
               <div className="space-y-3 p-8 text-center">
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-600">
                   {hasColumnFilters
                     ? "No hay movimientos con estos filtros."
                     : "Todavía no hay movimientos en esta cuenta."}
@@ -696,7 +696,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
               <caption className="sr-only">
                 Movimientos de {person.name}
               </caption>
-              <thead className="bg-slate-50 text-xs text-slate-500 border-b border-slate-200">
+              <thead className="bg-slate-50 text-xs text-slate-600 border-b border-slate-200">
                 <tr className="uppercase">
                   <th className="text-left px-4 py-2.5 font-semibold">
                     <button
@@ -755,7 +755,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                     <select
                       value={colPeriod}
                       onChange={(e) => setColPeriod(e.target.value)}
-                      className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
+                      className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
                     >
                       <option value="">Todo período</option>
                       {availableYearMonths.map((ym) => (
@@ -774,7 +774,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                       value={colConcept}
                       onChange={(e) => setColConcept(e.target.value)}
                       placeholder="Filtrar concepto o nota..."
-                      className="w-full min-w-36 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400"
+                      className="w-full min-w-36 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400"
                     />
                   </th>
                   {accounts.length > 1 && selectedAccountId === "ALL" && (
@@ -792,7 +792,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                               : Number(e.target.value),
                           )
                         }
-                        className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
+                        className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
                       >
                         <option value="ALL">Todas</option>
                         {accounts.map((a) => (
@@ -816,7 +816,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                             | "TRANSFER",
                         )
                       }
-                      className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
+                      className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
                     >
                       <option value="ALL">Todos los tipos</option>
                       <option value="IN_ONLY">Solo Entradas (+)</option>
@@ -832,7 +832,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100 tabular-nums">
+              <tbody className="divide-y divide-slate-200 tabular-nums">
                 {filteredRows.length === 0 ? (
                   <tr>
                     <td
@@ -841,7 +841,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                           ? 7
                           : 6
                       }
-                      className="py-10 text-center text-slate-400"
+                      className="py-10 text-center text-slate-600"
                     >
                       Sin movimientos para los filtros seleccionados
                     </td>
@@ -864,7 +864,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                           </div>
                           <div className="flex flex-wrap gap-2 mt-0.5">
                             {row.refAmount && row.refCurrency && (
-                              <span className="text-[0.6875rem] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                              <span className="text-xs text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
                                 Ref:{" "}
                                 {formatMoney(row.refAmount, row.refCurrency)}
                               </span>
@@ -875,7 +875,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                               </span>
                             )}
                             {row.notes && (
-                              <span className="text-xs text-slate-400 truncate max-w-xs">
+                              <span className="text-xs text-slate-600 truncate max-w-xs">
                                 {row.notes}
                               </span>
                             )}
@@ -946,12 +946,12 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
               key={grp.period}
               className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
                 <div>
                   <h3 className="font-bold text-slate-900">
                     {formatPeriodLabel(grp.period)}
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-600">
                     {grp.unsettledTotal > 0
                       ? `Pendiente de descontar: ${formatMoney(grp.unsettledTotal, "ARS")}`
                       : "Descontado en cuenta"}
@@ -1128,7 +1128,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
               {txType !== "TRANSFER" && (
                 <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                   <div className="col-span-2">
-                    <label className="block text-[0.6875rem] font-medium text-slate-500 mb-1">
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
                       Monto original otra moneda (opcional)
                     </label>
                     <MoneyInput
@@ -1139,7 +1139,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-[0.6875rem] font-medium text-slate-500 mb-1">
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
                       Moneda ref.
                     </label>
                     <select
@@ -1225,7 +1225,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
               </button>
             </div>
 
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-600">
               Con este enlace privado, {person.name} puede consultar su saldo,
               subcuentas, movimientos y boletas en{" "}
               <strong>modo solo lectura</strong> sin ver cuentas de nadie más.
@@ -1247,7 +1247,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                     type="text"
                     readOnly
                     value={shareUrl}
-                    className="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-700"
+                    className="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-xs text-slate-700"
                   />
                   <button
                     type="button"
@@ -1288,7 +1288,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                 type="button"
                 onClick={() => handleSaveShare(true)}
                 disabled={isPending}
-                className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-600 cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-rose-600 cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Regenerar link

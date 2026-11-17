@@ -57,7 +57,7 @@ function LoginForm() {
               Tu Nombre
             </label>
             <div className="relative">
-              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 id="login-name"
                 autoComplete="username"
@@ -80,7 +80,7 @@ function LoginForm() {
             {mode === "admin" ? "Clave de Administrador" : "Contraseña"}
           </label>
           <div className="relative">
-            <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               id="login-password"
               autoComplete="current-password"
@@ -132,7 +132,7 @@ export default function LoginPage() {
               <h1 className="text-lg font-semibold tracking-tight text-slate-900">
                 MultiCuentas
               </h1>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-600">
                 Administración personal y familiar
               </p>
             </div>
@@ -141,7 +141,7 @@ export default function LoginPage() {
             <h2 className="text-2xl font-semibold tracking-tight">
               Todo en su cuenta.
             </h2>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-slate-600">
               Ingresá para administrar tus pagos o consultar tu resumen
               familiar.
             </p>
@@ -157,7 +157,7 @@ export default function LoginPage() {
         </Suspense>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-3">
-        <p className="text-xs text-slate-500">Tamaño de letra</p>
+        <p className="text-xs text-slate-600">Tamaño de letra</p>
         <FontSizeControl variant="inline" />
       </div>
     </div>

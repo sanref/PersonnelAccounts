@@ -60,7 +60,7 @@ export default async function FamilySharedViewPage({
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         <section className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 space-y-4 tabular-nums">
           <div>
-            <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
+            <p className="text-xs uppercase tracking-wider text-slate-700 font-semibold">
               Saldo actual ({person.defaultCurrency})
             </p>
             <p
@@ -78,10 +78,10 @@ export default async function FamilySharedViewPage({
           </div>
 
           {accounts.length > 1 && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-100">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
               {accounts.map((acc) => (
                 <div key={acc.id} className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-xs text-slate-500 font-medium">{acc.name}</p>
+                  <p className="text-xs text-slate-600 font-medium">{acc.name}</p>
                   <p className="text-base font-bold text-slate-900 mt-0.5">
                     {formatMoney(acc.balance, acc.currency)}
                   </p>
@@ -102,7 +102,7 @@ export default async function FamilySharedViewPage({
                   key={grp.period}
                   className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2.5"
                 >
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <span className="font-bold text-slate-900 text-sm">
                       {formatPeriodLabel(grp.period)}
                     </span>

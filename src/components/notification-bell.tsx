@@ -99,7 +99,7 @@ export function NotificationBell({
         title="Notificaciones de vencimientos"
         aria-label="Notificaciones de vencimientos"
         aria-expanded={open}
-        className="relative inline-flex items-center justify-center min-h-11 min-w-11 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        className="relative inline-flex items-center justify-center min-h-11 min-w-11 px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
       >
         <Bell className="w-4 h-4" />
         {count > 0 && (
@@ -115,12 +115,12 @@ export function NotificationBell({
 
       {open && (
         <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-full sm:mt-2 sm:w-96 z-50 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/70">
+          <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-2 bg-slate-50">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
                 Vencimientos pendientes
               </h3>
-              <p className="text-[0.6875rem] text-slate-500">
+              <p className="text-xs text-slate-600">
                 {settings.enabled
                   ? `Aviso diario a las ${settings.notifyTime} hs`
                   : "Avisos automáticos pausados"}
@@ -129,7 +129,7 @@ export function NotificationBell({
             <Link
               href="/config#notificaciones"
               onClick={() => setOpen(false)}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition"
             >
               <Settings className="w-3.5 h-3.5" />
               <span>Horario</span>
@@ -156,7 +156,7 @@ export function NotificationBell({
             </div>
           )}
 
-          <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+          <div className="max-h-80 overflow-y-auto divide-y divide-slate-200">
             {alerts.length === 0 ? (
               <div className="p-6 text-center space-y-1">
                 <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
@@ -165,7 +165,7 @@ export function NotificationBell({
                 <p className="text-sm font-medium text-slate-800">
                   Todo al día
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-600">
                   No hay servicios próximos a vencer ni pendientes vencidos.
                 </p>
               </div>
@@ -206,7 +206,7 @@ export function NotificationBell({
                           {item.personName}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 tabular-nums">
+                      <p className="text-xs text-slate-600 tabular-nums">
                         {item.amount !== null && item.amount !== ""
                           ? formatMoney(item.amount, "ARS")
                           : "Monto pendiente de carga"}
@@ -223,7 +223,7 @@ export function NotificationBell({
             )}
           </div>
 
-          <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs">
+          <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs">
             <Link
               href="/pagos"
               onClick={() => setOpen(false)}
@@ -231,7 +231,7 @@ export function NotificationBell({
             >
               Ir a Pagos Mensuales →
             </Link>
-            <span className="text-[0.6875rem] text-slate-400">
+            <span className="text-[0.6875rem] text-slate-600">
               Anticipación: {settings.daysBefore}d
             </span>
           </div>

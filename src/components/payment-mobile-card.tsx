@@ -35,7 +35,7 @@ export function PaymentMobileCard({
     <article className="space-y-3 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <p className="text-xs text-slate-500">{item.person.name}</p>
+          <p className="text-xs text-slate-600">{item.person.name}</p>
           <h3 className="break-words text-sm font-medium text-slate-900">
             {item.concept}
           </h3>
@@ -68,7 +68,7 @@ export function PaymentMobileCard({
         </button>
       </div>
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <label className="min-w-0 text-xs text-slate-500">
+        <label className="min-w-0 text-xs text-slate-600">
           Vencimiento
           <input
             key={item.dueDate ?? "sin-fecha"}
@@ -76,11 +76,11 @@ export function PaymentMobileCard({
             disabled={busy}
             defaultValue={item.dueDate ?? ""}
             onBlur={(e) => onDate(e.target.value)}
-            className="mt-1 block min-h-11 w-full rounded-lg border border-slate-200 bg-white px-2 text-right text-sm tabular-nums text-slate-700"
+            className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-right text-sm tabular-nums text-slate-700"
           />
         </label>
         <div className="min-w-0 text-right">
-          <p className="text-xs text-slate-500">Importe</p>
+          <p className="text-xs text-slate-600">Importe</p>
           <InlineMoneyCell
             disabled={busy}
             label={`Importe de ${item.concept}`}
@@ -89,7 +89,7 @@ export function PaymentMobileCard({
           />
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
         <button
           type="button"
           disabled={busy}
@@ -124,7 +124,7 @@ export function PaymentMobileCard({
         ) : null}
       </div>
       {item.notes && (
-        <p className="break-words text-xs text-slate-500">{item.notes}</p>
+        <p className="break-words text-xs text-slate-600">{item.notes}</p>
       )}
     </article>
   );

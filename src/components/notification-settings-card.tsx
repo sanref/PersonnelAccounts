@@ -183,7 +183,7 @@ export function NotificationSettingsCard({
       id="notificaciones"
       className="panel p-4 sm:p-6 space-y-6 scroll-mt-36"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-slate-900" />
@@ -191,7 +191,7 @@ export function NotificationSettingsCard({
               Notificaciones de vencimientos
             </h2>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-600">
             Toma las fechas de vencimiento de tus servicios mensuales pendientes y te avisa
             a la hora elegida (hora de Argentina).
           </p>
@@ -219,7 +219,7 @@ export function NotificationSettingsCard({
               onChange={(e) => setNotifyTime(e.target.value)}
               className="w-full min-h-11 px-3 py-2 rounded-lg border border-slate-300 bg-white text-base font-semibold text-slate-900 tabular-nums"
             />
-            <p className="text-[0.6875rem] text-slate-500">
+            <p className="text-xs text-slate-600">
               Huso horario: Argentina (GMT-3)
             </p>
           </div>
@@ -242,7 +242,7 @@ export function NotificationSettingsCard({
               <option value="7">7 días antes</option>
               <option value="10">10 días antes</option>
             </select>
-            <p className="text-[0.6875rem] text-slate-500">
+            <p className="text-xs text-slate-600">
               Solo avisa si el servicio sigue como Pendiente.
             </p>
           </div>
@@ -289,7 +289,7 @@ export function NotificationSettingsCard({
               <Smartphone className="w-4 h-4 text-slate-600" />
               Dispositivos que reciben Push ({devices.length})
             </h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-600">
               Activá este botón en tu celular (idealmente desde la PWA instalada) y en tu PC.
             </p>
           </div>
@@ -327,7 +327,7 @@ export function NotificationSettingsCard({
               type="button"
               disabled={isPending || devices.length === 0}
               onClick={handleSendTest}
-              className="inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
+              className="inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
               Probar aviso
@@ -337,7 +337,7 @@ export function NotificationSettingsCard({
               type="button"
               disabled={isPending || devices.length === 0}
               onClick={handleSendPendingSummaryNow}
-              className="inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
+              className="inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
             >
               Enviar pendientes ahora
             </button>
@@ -357,7 +357,7 @@ export function NotificationSettingsCard({
         )}
 
         {devices.length > 0 && (
-          <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs">
+          <div className="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden text-xs">
             {devices.map((dev) => {
               const isThisOne = dev.endpoint === localEndpoint;
               return (
@@ -389,7 +389,7 @@ export function NotificationSettingsCard({
                         router.refresh();
                       })
                     }
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -399,7 +399,7 @@ export function NotificationSettingsCard({
           </div>
         )}
 
-        <details className="text-xs text-slate-500 bg-slate-50 rounded-xl p-3 border border-slate-200/70">
+        <details className="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 border border-slate-200/70">
           <summary className="font-semibold text-slate-700 cursor-pointer select-none">
             Opcional: disparo puntual exacto con la app cerrada en Vercel Gratis
           </summary>
@@ -424,7 +424,7 @@ export function NotificationSettingsCard({
                 type="text"
                 readOnly
                 value={cronUrl}
-                className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[0.6875rem]"
+                className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-600 text-[0.6875rem]"
               />
               <button
                 type="button"

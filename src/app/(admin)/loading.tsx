@@ -16,7 +16,7 @@ export default function AdminLoading() {
           </div>
         ))}
       </div>
-      <div aria-hidden="true" className="panel divide-y divide-slate-100">
+      <div aria-hidden="true" className="panel divide-y divide-slate-200">
         {[0, 1, 2, 3, 4].map((i) => (
           <div key={i} className="flex justify-between gap-6 p-6">
             <div className="h-4 w-2/5 rounded bg-slate-100" />

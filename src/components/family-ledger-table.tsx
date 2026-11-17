@@ -44,7 +44,7 @@ export function FamilyLedgerTable({
 
   return (
     <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+      <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-2">
         <h2 className="text-base font-bold text-slate-900">
           Historial de Movimientos ({filtered.length} de {rows.length})
         </h2>
@@ -67,7 +67,7 @@ export function FamilyLedgerTable({
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs text-slate-500 border-b border-slate-200">
+          <thead className="bg-slate-50 text-xs text-slate-600 border-b border-slate-200">
             <tr className="uppercase">
               <th className="text-left px-4 py-2.5 font-semibold">Fecha</th>
               <th className="text-left px-4 py-2.5 font-semibold">Concepto</th>
@@ -83,7 +83,7 @@ export function FamilyLedgerTable({
                 <select
                   value={colPeriod}
                   onChange={(e) => setColPeriod(e.target.value)}
-                  className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
+                  className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
                 >
                   <option value="">Todo período</option>
                   {availableMonths.map((ym) => (
@@ -99,7 +99,7 @@ export function FamilyLedgerTable({
                   value={colConcept}
                   onChange={(e) => setColConcept(e.target.value)}
                   placeholder="Filtrar concepto..."
-                  className="w-full min-w-32 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-800 focus:outline-none"
+                  className="w-full min-w-32 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-800 focus:outline-none"
                 />
               </th>
               {accounts.length > 1 && (
@@ -111,7 +111,7 @@ export function FamilyLedgerTable({
                         e.target.value === "ALL" ? "ALL" : Number(e.target.value)
                       )
                     }
-                    className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
+                    className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
                   >
                     <option value="ALL">Todas</option>
                     {accounts.map((a) => (
@@ -128,7 +128,7 @@ export function FamilyLedgerTable({
                   onChange={(e) =>
                     setColType(e.target.value as "ALL" | "IN" | "OUT")
                   }
-                  className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
+                  className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
                 >
                   <option value="ALL">Entradas y Salidas</option>
                   <option value="IN">Solo Entradas</option>
@@ -139,18 +139,18 @@ export function FamilyLedgerTable({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-100 tabular-nums">
+          <tbody className="divide-y divide-slate-200 tabular-nums">
             {filtered.map((row) => {
               const isPos = row.signedAmount > 0;
               return (
                 <tr key={row.id}>
-                  <td className="px-4 py-2.5 whitespace-nowrap text-xs text-slate-500">
+                  <td className="px-4 py-2.5 whitespace-nowrap text-xs text-slate-600">
                     {formatDateAR(row.date, row.dateUnknown)}
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="font-medium text-slate-900">{row.concept}</div>
                     {row.refAmount && row.refCurrency && (
-                      <span className="text-[0.6875rem] text-slate-500">
+                      <span className="text-xs text-slate-600">
                         Ref: {formatMoney(row.refAmount, row.refCurrency)}
                       </span>
                     )}

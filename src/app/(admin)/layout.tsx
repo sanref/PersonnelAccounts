@@ -19,7 +19,7 @@ export default async function AdminLayout({
     .map((p) => ({ slug: p.slug, name: p.name }));
 
   return (
-    <div className="min-h-screen flex flex-col pb-32 lg:pb-8 lg:pl-60">
+    <div className="min-h-screen flex flex-col pb-32 md:pb-8">
       <NavShell
         peopleLinks={managedLinks}
         notificationAlerts={notifState.alerts}

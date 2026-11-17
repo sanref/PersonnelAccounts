@@ -54,7 +54,7 @@ export default async function DashboardPage() {
         <div className="space-y-1">
           <p className="eyebrow">Tu administración, en orden</p>
           <h1 className="page-title">Resumen general</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-600">
             Tus cuentas y pagos de{" "}
             <span className="tabular-nums">
               {formatPeriodLabel(period).toLowerCase()}
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
 
       <section
         aria-label="Pagos del mes"
-        className="panel grid divide-y divide-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0"
+        className="panel grid divide-y divide-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0"
       >
         {[
           {
@@ -96,11 +96,11 @@ export default async function DashboardPage() {
             key={metric.label}
             className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-4 py-3 sm:block sm:p-6"
           >
-            <p className="text-xs font-medium text-slate-500">{metric.label}</p>
+            <p className="text-xs font-medium text-slate-600">{metric.label}</p>
             <p className="break-words text-right text-lg font-semibold tracking-tight tabular-nums sm:mt-2 sm:text-left sm:text-2xl">
               {formatMoney(metric.amount, "ARS")}
             </p>
-            <p className="hidden text-xs text-slate-500 tabular-nums sm:mt-1 sm:block">
+            <p className="hidden text-xs text-slate-600 tabular-nums sm:mt-1 sm:block">
               {metric.hint}
             </p>
           </div>
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
             <h2 id="accounts-heading" className="text-base font-medium">
               Cuentas administradas
             </h2>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-600">
               Elegí una persona para ver su saldo y movimientos.
             </p>
           </div>
@@ -148,15 +148,15 @@ export default async function DashboardPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-sm font-medium">{p.name}</h3>
-                    <p className="mt-0.5 text-xs text-slate-500">
+                    <p className="mt-0.5 text-xs text-slate-600">
                       {p.defaultCurrency} · {p.accounts.length}{" "}
                       {p.accounts.length === 1 ? "cuenta" : "cuentas"}
                     </p>
                   </div>
-                  <ArrowUpRight className="size-4 shrink-0 text-slate-400 group-hover:text-slate-900" />
+                  <ArrowUpRight className="size-4 shrink-0 text-slate-500 group-hover:text-slate-900" />
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-slate-500">Saldo disponible</p>
+                  <p className="text-xs text-slate-600">Saldo disponible</p>
                   <p className="mt-1 break-words text-2xl font-semibold tracking-tight tabular-nums">
                     {formatMoney(p.totalBalance, p.defaultCurrency)}
                   </p>
@@ -166,7 +166,7 @@ export default async function DashboardPage() {
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3 text-xs text-slate-600">
                   <span className="inline-flex min-w-0 items-center gap-2">
                     <Wallet className="size-3 shrink-0" />
                     <span className="truncate">
@@ -192,12 +192,12 @@ export default async function DashboardPage() {
           aria-labelledby="pending-heading"
           className="panel min-w-0 overflow-hidden"
         >
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4 sm:p-6">
             <div>
               <h2 id="pending-heading" className="text-base font-medium">
                 Pendientes de pago
               </h2>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-slate-600">
                 Del mes y de períodos anteriores.
               </p>
             </div>
@@ -210,7 +210,7 @@ export default async function DashboardPage() {
           </div>
           {pendingBills.length === 0 ? (
             <div className="flex flex-col items-center gap-3 p-8 text-center">
-              <CheckCircle2 className="size-8 text-slate-400" />
+              <CheckCircle2 className="size-8 text-slate-500" />
               <p className="text-sm font-medium">
                 No tenés pagos pendientes cargados
               </p>
@@ -222,7 +222,7 @@ export default async function DashboardPage() {
               </Link>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-200">
               {pendingBills.slice(0, 8).map((bill) => (
                 <Link
                   key={bill.id}
@@ -233,7 +233,7 @@ export default async function DashboardPage() {
                     <p className="break-words text-sm font-medium">
                       {bill.concept}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-slate-600">
                       {bill.person.name}
                       {bill.isCarryOver && (
                         <span className="ml-2 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-amber-800">
@@ -248,7 +248,7 @@ export default async function DashboardPage() {
                         ? formatMoney(bill.amount, "ARS")
                         : "Sin importe"}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-slate-600">
                       {bill.dueDate
                         ? formatDateAR(bill.dueDate)
                         : "Sin vencimiento"}
@@ -270,11 +270,11 @@ export default async function DashboardPage() {
           <h2 id="settlement-heading" className="text-base font-medium">
             Por descontar en cuenta
           </h2>
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          <p className="mt-2 text-xs leading-relaxed text-slate-600">
             Gastos de {formatPeriodLabel(period).toLowerCase()} que todavía no
             se registraron como egreso. No es lo mismo que un pago pendiente.
           </p>
-          <div className="mt-4 divide-y divide-slate-100">
+          <div className="mt-4 divide-y divide-slate-200">
             {unsettledByPerson.map(({ person, count, total }) => (
               <Link
                 key={person.id}
@@ -283,7 +283,7 @@ export default async function DashboardPage() {
               >
                 <div>
                   <p className="text-sm font-medium">{person.name}</p>
-                  <p className="mt-1 text-xs text-slate-500 tabular-nums">
+                  <p className="mt-1 text-xs text-slate-600 tabular-nums">
                     {count} conceptos
                   </p>
                 </div>
