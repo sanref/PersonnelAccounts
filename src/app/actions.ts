@@ -24,6 +24,7 @@ import {
   signPinToken,
 } from "@/lib/auth";
 import { formatMoney, formatPeriodLabel, shiftPeriod, todayISO } from "@/lib/format";
+import { isValidFrequency, serviceAppliesToPeriod } from "@/lib/service-schedule";
 import {
   dispatchDueNotifications,
   getOrCreateNotificationSettings,
@@ -528,11 +529,14 @@ export async function createServiceAction(input: {
   defaultDueDay?: number | null;
   defaultAmount?: number | null;
   paysInArrears?: boolean;
+  frequencyMonths?: number;
+  startMonth?: number;
   notes?: string;
 }) {
   await requireAdmin();
   const name = input.name.trim();
   if (!name) throw new Error("Nombre del servicio requerido");
+  const schedule = normalizeSchedule(input.frequencyMonths, input.startMonth);
 
   await db.insert(services).values({
     personId: input.personId,
@@ -543,10 +547,37 @@ export async function createServiceAction(input: {
         ? Number(input.defaultAmount).toFixed(2)
         : null,
     paysInArrears: Boolean(input.paysInArrears),
+    frequencyMonths: schedule.frequencyMonths,
+    startMonth: schedule.startMonth,
     notes: input.notes?.trim() || null,
     isActive: true,
     sortOrder: 50,
   });
+  revalidateAll();
+}
+
+function normalizeSchedule(frequencyMonths = 1, startMonth = 1) {
+  if (!isValidFrequency(frequencyMonths)) {
+    throw new Error("Frecuencia inválida: elegí mensual, bimestral, trimestral, cuatrimestral, semestral o anual");
+  }
+  if (!Number.isInteger(startMonth) || startMonth < 1 || startMonth > 12) {
+    throw new Error("El primer mes de pago tiene que estar entre 1 y 12");
+  }
+  return { frequencyMonths, startMonth };
+}
+
+/**
+ * Cambia la frecuencia de un servicio. Solo afecta a los meses que se generen
+ * de ahora en más: no toca ni borra ítems que ya existen.
+ */
+export async function updateServiceScheduleAction(input: {
+  id: number;
+  frequencyMonths: number;
+  startMonth: number;
+}) {
+  await requireAdmin();
+  const schedule = normalizeSchedule(input.frequencyMonths, input.startMonth);
+  await db.update(services).set(schedule).where(eq(services.id, input.id));
   revalidateAll();
 }
 
@@ -638,7 +669,9 @@ export async function generateMonthItemsAction(period: string) {
       .map((i) => i.serviceId)
       .filter(Boolean)
   );
-  const missingServices = activeServices.filter((s) => !visibleSrvIds.has(s.id));
+  const missingServices = activeServices.filter(
+    (s) => serviceAppliesToPeriod(s, period) && !visibleSrvIds.has(s.id)
+  );
 
   const toInsert: Array<typeof monthlyItems.$inferInsert> = [];
   const restoreOps: Array<Promise<unknown>> = [];

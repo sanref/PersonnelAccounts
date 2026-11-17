@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, lt, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, people, accounts, transactions, services, monthlyItems } from "@/db";
+import { serviceAppliesToPeriod } from "@/lib/service-schedule";
 
 export interface AccountSummary {
   id: number;
@@ -375,7 +376,8 @@ export async function getMonthlyPaymentsData(period: string) {
   const activeServicesCount = allServices.filter((s) => s.isActive).length;
   const existingServiceIds = new Set(items.map((i) => i.serviceId).filter(Boolean));
   const missingServicesCount = allServices.filter(
-    (s) => s.isActive && !existingServiceIds.has(s.id)
+    (s) =>
+      s.isActive && serviceAppliesToPeriod(s, period) && !existingServiceIds.has(s.id)
   ).length;
 
   return {

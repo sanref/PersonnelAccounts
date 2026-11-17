@@ -27,6 +27,7 @@ import {
   updateAccountAction,
   deleteAccountAction,
   setDefaultAccountAction,
+  updateServiceScheduleAction,
   updateShareSettingsAction,
   createServiceAction,
   toggleServiceActiveAction,
@@ -39,6 +40,11 @@ import { MoneyInput, ToggleSwitch } from "@/components/ui-controls";
 import { NotificationSettingsCard } from "@/components/notification-settings-card";
 import { EmptyState } from "@/components/ui-feedback";
 import { Modal } from "@/components/modal";
+import {
+  FREQUENCY_OPTIONS,
+  monthNameAR,
+  scheduledMonths,
+} from "@/lib/service-schedule";
 
 interface ServiceItem {
   id: number;
@@ -47,6 +53,8 @@ interface ServiceItem {
   defaultDueDay: number | null;
   defaultAmount: string | null;
   paysInArrears: boolean;
+  frequencyMonths: number;
+  startMonth: number;
   notes: string | null;
   isActive: boolean;
   person: { id: number; name: string };
@@ -103,6 +111,8 @@ export function ConfigClient({
   const [sDueDay, setSDueDay] = useState("10");
   const [sNotes, setSNotes] = useState("");
   const [sArrears, setSArrears] = useState(false);
+  const [sFrequency, setSFrequency] = useState(1);
+  const [sStartMonth, setSStartMonth] = useState(new Date().getMonth() + 1);
 
   // Filtros por columna del Catálogo de Servicios
   const [fPerson, setFPerson] = useState<number | "ALL">("ALL");
@@ -261,11 +271,14 @@ export function ConfigClient({
         name: sName,
         defaultDueDay: Number(sDueDay) || null,
         paysInArrears: sArrears,
+        frequencyMonths: sFrequency,
+        startMonth: sStartMonth,
         notes: sNotes,
       });
       setSName("");
       setSNotes("");
       setSArrears(false);
+      setSFrequency(1);
       router.refresh();
     });
   }
@@ -503,8 +516,9 @@ export function ConfigClient({
               Servicios fijos
             </h2>
             <p className="text-xs text-slate-600">
-              Este catálogo se reutiliza cada mes. «Mes vencido» indica que la
-              factura corresponde al mes anterior.
+              Este catálogo se reutiliza según la frecuencia de cada servicio
+              (mensual, bimestral…). «Mes vencido» indica que la factura
+              corresponde al mes anterior.
             </p>
           </div>
 
@@ -577,6 +591,56 @@ export function ConfigClient({
                   className="field"
                 />
               </div>
+              <div className="sm:col-span-3">
+                <label className="field-label" htmlFor="service-frequency">
+                  Frecuencia
+                </label>
+                <select
+                  id="service-frequency"
+                  value={sFrequency}
+                  onChange={(e) => setSFrequency(Number(e.target.value))}
+                  className="field"
+                >
+                  {FREQUENCY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {sFrequency > 1 && (
+                <div className="sm:col-span-3">
+                  <label className="field-label" htmlFor="service-start-month">
+                    Primer mes de pago
+                  </label>
+                  <select
+                    id="service-start-month"
+                    value={sStartMonth}
+                    onChange={(e) => setSStartMonth(Number(e.target.value))}
+                    className="field"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <option key={m} value={m}>
+                        {monthNameAR(m)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {sFrequency > 1 && (
+                <p className="sm:col-span-12 text-xs text-slate-600">
+                  Se carga en:{" "}
+                  <strong>
+                    {scheduledMonths({
+                      frequencyMonths: sFrequency,
+                      startMonth: sStartMonth,
+                    })
+                      .map(monthNameAR)
+                      .join(", ")}
+                  </strong>
+                  . El importe habitual es el de cada factura.
+                </p>
+              )}
               <div className="sm:col-span-3 flex items-center justify-between sm:justify-end gap-3">
                 <ToggleSwitch
                   checked={sArrears}
@@ -607,6 +671,9 @@ export function ConfigClient({
                 </th>
                 <th className="text-center px-3 py-2.5 font-semibold">
                   Venc. aprox.
+                </th>
+                <th className="text-left px-3 py-2.5 font-semibold">
+                  Frecuencia
                 </th>
                 <th className="text-center px-3 py-2.5 font-semibold">
                   Mes vencido
@@ -665,6 +732,7 @@ export function ConfigClient({
                 <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600">
                   Día del mes
                 </th>
+                <th className="px-3 py-2"></th>
                 <th className="px-3 py-2">
                   <select
                     value={fArrears}
@@ -751,6 +819,65 @@ export function ConfigClient({
                       />
                     </div>
                   </td>
+                  <td className="px-3 py-3">
+                    <div className="flex min-w-40 flex-col gap-1">
+                      <select
+                        value={srv.frequencyMonths}
+                        disabled={isPending}
+                        aria-label={`Frecuencia de ${srv.name}`}
+                        onChange={(e) =>
+                          startTransition(async () => {
+                            await updateServiceScheduleAction({
+                              id: srv.id,
+                              frequencyMonths: Number(e.target.value),
+                              startMonth: srv.startMonth,
+                            });
+                            router.refresh();
+                          })
+                        }
+                        className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800"
+                      >
+                        {FREQUENCY_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                      {srv.frequencyMonths > 1 && (
+                        <>
+                          <select
+                            value={srv.startMonth}
+                            disabled={isPending}
+                            aria-label={`Primer mes de pago de ${srv.name}`}
+                            onChange={(e) =>
+                              startTransition(async () => {
+                                await updateServiceScheduleAction({
+                                  id: srv.id,
+                                  frequencyMonths: srv.frequencyMonths,
+                                  startMonth: Number(e.target.value),
+                                });
+                                router.refresh();
+                              })
+                            }
+                            className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
+                          >
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map(
+                              (m) => (
+                                <option key={m} value={m}>
+                                  Desde {monthNameAR(m).toLowerCase()}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                          <span className="text-[0.6875rem] text-slate-600">
+                            {scheduledMonths(srv)
+                              .map((m) => monthNameAR(m).slice(0, 3))
+                              .join(" · ")}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-3 py-3 text-center">
                     <div className="inline-flex justify-center">
                       <ToggleSwitch
@@ -805,7 +932,7 @@ export function ConfigClient({
               ))}
               {filteredServices.length === 0 && (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <EmptyState
                       title={
                         hasFilters

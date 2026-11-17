@@ -89,6 +89,10 @@ export const services = pgTable(
     defaultDueDay: integer("default_due_day"), // 1..31
     defaultAmount: numeric("default_amount", { precision: 14, scale: 2 }),
     paysInArrears: boolean("pays_in_arrears").notNull().default(false), // true = en Nov se paga lo de Oct
+    // Cada cuántos meses llega la factura: 1 mensual, 2 bimestral, 3, 4, 6, 12.
+    frequencyMonths: integer("frequency_months").notNull().default(1),
+    // Mes del año (1..12) de la primera factura; solo importa si frequencyMonths > 1.
+    startMonth: integer("start_month").notNull().default(1),
     notes: text("notes"), // client number, policy number, house ref, etc.
     isActive: boolean("is_active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),

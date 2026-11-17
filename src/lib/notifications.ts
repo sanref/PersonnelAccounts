@@ -10,6 +10,7 @@ import {
   services,
 } from "@/db";
 import { formatDateAR, formatMoney, shiftPeriod } from "@/lib/format";
+import { serviceAppliesToPeriod } from "@/lib/service-schedule";
 
 export interface DueAlertItem {
   id: number;
@@ -172,7 +173,9 @@ export async function ensurePeriodsInitialized(todayYMD: string, daysBefore: num
       where: eq(monthlyItems.period, period),
     });
     const existingSrvIds = new Set(existing.map((i) => i.serviceId).filter(Boolean));
-    const toCreate = activeServices.filter((s) => !existingSrvIds.has(s.id));
+    const toCreate = activeServices.filter(
+      (s) => !existingSrvIds.has(s.id) && serviceAppliesToPeriod(s, period)
+    );
 
     if (toCreate.length > 0) {
       await Promise.all(
