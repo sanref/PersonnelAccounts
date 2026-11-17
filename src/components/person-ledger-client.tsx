@@ -32,6 +32,7 @@ import {
   todayISO,
 } from "@/lib/format";
 import { MoneyInput, ToggleSwitch } from "@/components/ui-controls";
+import { Modal } from "@/components/modal";
 
 interface MonthlySummaryGroup {
   period: string;
@@ -75,13 +76,19 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
   const [isPending, startTransition] = useTransition();
 
   const { person, accounts } = detail;
-  const [selectedAccountId, setSelectedAccountId] = useState<number | "ALL">("ALL");
-  const [activeTab, setActiveTab] = useState<"movimientos" | "resumenes">("movimientos");
+  const [selectedAccountId, setSelectedAccountId] = useState<number | "ALL">(
+    "ALL",
+  );
+  const [activeTab, setActiveTab] = useState<"movimientos" | "resumenes">(
+    "movimientos",
+  );
 
   // Filtros por columna en la Grilla de Movimientos
   const [colPeriod, setColPeriod] = useState(""); // ej: "2026-10" o "2026"
   const [colConcept, setColConcept] = useState("");
-  const [colAccountFilter, setColAccountFilter] = useState<number | "ALL">("ALL");
+  const [colAccountFilter, setColAccountFilter] = useState<number | "ALL">(
+    "ALL",
+  );
   const [colTypeFilter, setColTypeFilter] = useState<
     "ALL" | "IN_ONLY" | "OUT_ONLY" | "YIELD" | "TRANSFER"
   >("ALL");
@@ -91,10 +98,12 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
   // Modal Nuevo / Editar Movimiento
   const [txModalOpen, setTxModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<LedgerRow | null>(null);
-  const [txType, setTxType] = useState<"IN" | "OUT" | "YIELD" | "TRANSFER">("OUT");
+  const [txType, setTxType] = useState<"IN" | "OUT" | "YIELD" | "TRANSFER">(
+    "OUT",
+  );
   const [txAccountId, setTxAccountId] = useState<number>(accounts[0]?.id ?? 0);
   const [txToAccountId, setTxToAccountId] = useState<number>(
-    accounts[1]?.id ?? accounts[0]?.id ?? 0
+    accounts[1]?.id ?? accounts[0]?.id ?? 0,
   );
   const [txDate, setTxDate] = useState<string>(todayISO());
   const [txAmount, setTxAmount] = useState<string>("");
@@ -102,7 +111,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
   const [txNotes, setTxNotes] = useState<string>("");
   const [txRefAmount, setTxRefAmount] = useState<string>("");
   const [txRefCurrency, setTxRefCurrency] = useState<string>(
-    person.defaultCurrency === "USD" ? "ARS" : "USD"
+    person.defaultCurrency === "USD" ? "ARS" : "USD",
   );
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -120,7 +129,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
   const activeRows =
     selectedAccountId === "ALL"
       ? detail.combinedLedger
-      : detail.ledgerByAccount[selectedAccountId] ?? [];
+      : (detail.ledgerByAccount[selectedAccountId] ?? []);
 
   // Opciones de año-mes presentes para filtrar rápido por columna Fecha
   const availableYearMonths = useMemo(() => {
@@ -165,7 +174,8 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
           return false;
         }
       }
-      if (colAccountFilter !== "ALL" && r.accountId !== colAccountFilter) return false;
+      if (colAccountFilter !== "ALL" && r.accountId !== colAccountFilter)
+        return false;
       if (q) {
         const hay = `${r.concept} ${r.notes ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -223,10 +233,12 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
     setEditingTx(null);
     setTxType(defaultType);
     setTxAccountId(
-      selectedAccountId !== "ALL" ? selectedAccountId : (accounts[0]?.id ?? 0)
+      selectedAccountId !== "ALL" ? selectedAccountId : (accounts[0]?.id ?? 0),
     );
     const otherAcc = accounts.find(
-      (a) => a.id !== (selectedAccountId !== "ALL" ? selectedAccountId : accounts[0]?.id)
+      (a) =>
+        a.id !==
+        (selectedAccountId !== "ALL" ? selectedAccountId : accounts[0]?.id),
     );
     setTxToAccountId(otherAcc?.id ?? accounts[0]?.id ?? 0);
     setTxDate(todayISO());
@@ -250,7 +262,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
     setTxNotes(row.notes ?? "");
     setTxRefAmount(row.refAmount ? formatNumberAR(row.refAmount, 2) : "");
     setTxRefCurrency(
-      row.refCurrency ?? (person.defaultCurrency === "USD" ? "ARS" : "USD")
+      row.refCurrency ?? (person.defaultCurrency === "USD" ? "ARS" : "USD"),
     );
     setFormError(null);
     setTxModalOpen(true);
@@ -345,24 +357,25 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
     typeof window !== "undefined" && person.shareToken
       ? `${window.location.origin}/v/${person.shareToken}`
       : person.shareToken
-      ? `/v/${person.shareToken}`
-      : "";
+        ? `/v/${person.shareToken}`
+        : "";
 
   const isNegative = detail.totalBalance < -0.004;
 
   return (
     <div className="space-y-6">
       {/* Cabecera de Persona + Saldo Principal */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+      <div className="panel p-4 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold text-slate-900">{person.name}</h1>
+            <h1 className="page-title">{person.name}</h1>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
               {person.defaultCurrency}
             </span>
           </div>
+          <p className="mt-4 text-xs text-slate-500">Saldo disponible</p>
           <p
-            className={`text-3xl sm:text-4xl font-bold tracking-tight mt-2 tabular-nums ${
+            className={`break-words text-3xl font-semibold tracking-tight mt-1 tabular-nums ${
               isNegative ? "text-rose-600" : "text-slate-900"
             }`}
           >
@@ -379,7 +392,8 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
           <button
             type="button"
             onClick={() => openNewTx("IN")}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition cursor-pointer"
+            disabled={accounts.length === 0 || isPending}
+            className="btn-secondary"
           >
             <Plus className="w-4 h-4" />
             Ingreso
@@ -387,7 +401,8 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
           <button
             type="button"
             onClick={() => openNewTx("OUT")}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition cursor-pointer"
+            disabled={accounts.length === 0 || isPending}
+            className="btn-primary"
           >
             <Plus className="w-4 h-4" />
             Gasto / Pago
@@ -396,7 +411,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
             <button
               type="button"
               onClick={() => openNewTx("TRANSFER")}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-slate-800 text-sm font-medium hover:bg-slate-50 transition cursor-pointer"
+              className="btn-secondary"
             >
               <ArrowLeftRight className="w-4 h-4" />
               Transferir
@@ -405,7 +420,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
           <button
             type="button"
             onClick={() => setShareOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-sm font-medium hover:bg-slate-100 transition cursor-pointer"
+            className="btn-ghost"
           >
             <Share2 className="w-4 h-4" />
             Compartir
@@ -421,7 +436,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
             onClick={() => setSelectedAccountId("ALL")}
             className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium border transition cursor-pointer ${
               selectedAccountId === "ALL"
-                ? "bg-slate-900 text-white border-slate-900"
+                ? "bg-slate-100 text-slate-900 border-slate-300"
                 : "bg-white text-slate-700 border-slate-200 hover:border-slate-400"
             }`}
           >
@@ -441,12 +456,14 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
               }
               className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium border transition cursor-pointer ${
                 active
-                  ? "bg-slate-900 text-white border-slate-900"
+                  ? "bg-slate-100 text-slate-900 border-slate-300"
                   : "bg-white text-slate-700 border-slate-200 hover:border-slate-400"
               }`}
             >
               {acc.name}:{" "}
-              <span className="font-bold">{formatMoney(acc.balance, acc.currency)}</span>
+              <span className="font-bold">
+                {formatMoney(acc.balance, acc.currency)}
+              </span>
             </button>
           );
         })}
@@ -493,16 +510,17 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
           <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
             <div className="flex flex-wrap items-center gap-3 tabular-nums">
               <span>
-                Mostrando <strong>{filteredRows.length}</strong> de {activeRows.length}
+                Mostrando <strong>{filteredRows.length}</strong> de{" "}
+                {activeRows.length}
               </span>
-              <span>·</span>
+              <span className="hidden sm:inline">·</span>
               <span>
                 Entradas:{" "}
                 <strong className="text-emerald-700">
                   {formatMoney(filteredTotals.totalIn, person.defaultCurrency)}
                 </strong>
               </span>
-              <span>·</span>
+              <span className="hidden sm:inline">·</span>
               <span>
                 Salidas:{" "}
                 <strong className="text-rose-600">
@@ -523,8 +541,161 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
             )}
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="md:hidden">
+            <div className="space-y-3 border-b border-slate-100 p-4">
+              <label className="field-label">
+                Buscar movimiento
+                <input
+                  type="search"
+                  value={colConcept}
+                  onChange={(e) => setColConcept(e.target.value)}
+                  placeholder="Buscar concepto o nota…"
+                  className="field mt-1"
+                />
+              </label>
+              <details>
+                <summary className="min-h-11 cursor-pointer rounded-lg py-3 text-xs font-medium text-slate-600">
+                  Filtrar movimientos
+                </summary>
+                <div className="grid gap-3 pt-2">
+                  <label className="field-label">
+                    Período
+                    <select
+                      value={colPeriod}
+                      onChange={(e) => setColPeriod(e.target.value)}
+                      className="field mt-1"
+                    >
+                      <option value="">Todos los períodos</option>
+                      {availableYearMonths.map((month) => (
+                        <option key={month} value={month}>
+                          {formatPeriodLabel(month)}
+                        </option>
+                      ))}
+                      <option value="SIN_FECHA">Sin fecha</option>
+                    </select>
+                  </label>
+                  <label className="field-label">
+                    Tipo
+                    <select
+                      value={colTypeFilter}
+                      onChange={(e) =>
+                        setColTypeFilter(e.target.value as typeof colTypeFilter)
+                      }
+                      className="field mt-1"
+                    >
+                      <option value="ALL">Todos</option>
+                      <option value="IN_ONLY">Entradas</option>
+                      <option value="OUT_ONLY">Salidas</option>
+                      <option value="YIELD">Rendimientos</option>
+                      <option value="TRANSFER">Transferencias</option>
+                    </select>
+                  </label>
+                  <label className="field-label">
+                    Cuenta
+                    <select
+                      value={colAccountFilter}
+                      onChange={(e) =>
+                        setColAccountFilter(
+                          e.target.value === "ALL"
+                            ? "ALL"
+                            : Number(e.target.value),
+                        )
+                      }
+                      className="field mt-1"
+                    >
+                      <option value="ALL">Todas las cuentas</option>
+                      {accounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </details>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {filteredRows.map((row) => (
+                <article key={row.id} className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-medium">
+                        {row.concept}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {row.accountName}
+                      </p>
+                    </div>
+                    <div className="text-right tabular-nums">
+                      <p className="text-sm font-semibold">
+                        {row.signedAmount > 0 ? "+" : "−"}
+                        {formatMoney(row.amount, row.currency)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatDateAR(row.date, row.dateUnknown)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-slate-500 tabular-nums">
+                      Saldo: {formatMoney(row.runningBalance, row.currency)}
+                    </span>
+                    <div className="flex">
+                      {!row.transferGroupId && (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => openEditTx(row)}
+                          className="icon-button"
+                          aria-label={`Editar ${row.concept}`}
+                        >
+                          <Pencil className="size-4" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => handleDeleteTx(row)}
+                        className="icon-button hover:bg-rose-50 hover:text-rose-700"
+                        aria-label={`Eliminar ${row.concept}`}
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {row.notes && (
+                    <p className="break-words text-xs text-slate-500">
+                      {row.notes}
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+            {filteredRows.length === 0 && (
+              <div className="space-y-3 p-8 text-center">
+                <p className="text-sm text-slate-500">
+                  {hasColumnFilters
+                    ? "No hay movimientos con estos filtros."
+                    : "Todavía no hay movimientos en esta cuenta."}
+                </p>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={!hasColumnFilters && accounts.length === 0}
+                  onClick={
+                    hasColumnFilters ? clearFilters : () => openNewTx("IN")
+                  }
+                >
+                  {hasColumnFilters ? "Limpiar filtros" : "Registrar ingreso"}
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
+              <caption className="sr-only">
+                Movimientos de {person.name}
+              </caption>
               <thead className="bg-slate-50 text-xs text-slate-500 border-b border-slate-200">
                 <tr className="uppercase">
                   <th className="text-left px-4 py-2.5 font-semibold">
@@ -548,7 +719,9 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                     </button>
                   </th>
                   {accounts.length > 1 && selectedAccountId === "ALL" && (
-                    <th className="text-left px-3 py-2.5 font-semibold">Cuenta</th>
+                    <th className="text-left px-3 py-2.5 font-semibold">
+                      Cuenta
+                    </th>
                   )}
                   <th className="text-right px-4 py-2.5 font-semibold">
                     <button
@@ -570,7 +743,9 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-right px-4 py-2.5 font-semibold">Saldo</th>
+                  <th className="text-right px-4 py-2.5 font-semibold">
+                    Saldo
+                  </th>
                   <th className="w-20 px-3 py-2.5"></th>
                 </tr>
 
@@ -605,10 +780,16 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                   {accounts.length > 1 && selectedAccountId === "ALL" && (
                     <th className="px-2 py-2">
                       <select
-                        value={colAccountFilter === "ALL" ? "ALL" : String(colAccountFilter)}
+                        value={
+                          colAccountFilter === "ALL"
+                            ? "ALL"
+                            : String(colAccountFilter)
+                        }
                         onChange={(e) =>
                           setColAccountFilter(
-                            e.target.value === "ALL" ? "ALL" : Number(e.target.value)
+                            e.target.value === "ALL"
+                              ? "ALL"
+                              : Number(e.target.value),
                           )
                         }
                         className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
@@ -632,7 +813,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                             | "IN_ONLY"
                             | "OUT_ONLY"
                             | "YIELD"
-                            | "TRANSFER"
+                            | "TRANSFER",
                         )
                       }
                       className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
@@ -655,7 +836,11 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                 {filteredRows.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={accounts.length > 1 && selectedAccountId === "ALL" ? 7 : 6}
+                      colSpan={
+                        accounts.length > 1 && selectedAccountId === "ALL"
+                          ? 7
+                          : 6
+                      }
                       className="py-10 text-center text-slate-400"
                     >
                       Sin movimientos para los filtros seleccionados
@@ -666,16 +851,22 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                     const isPositive = row.signedAmount > 0;
                     const negRun = row.runningBalance < -0.004;
                     return (
-                      <tr key={row.id} className="hover:bg-slate-50/80 transition">
+                      <tr
+                        key={row.id}
+                        className="hover:bg-slate-50/80 transition"
+                      >
                         <td className="px-4 py-3 whitespace-nowrap text-slate-600 text-xs sm:text-sm">
                           {formatDateAR(row.date, row.dateUnknown)}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="font-medium text-slate-900">{row.concept}</div>
+                          <div className="font-medium text-slate-900">
+                            {row.concept}
+                          </div>
                           <div className="flex flex-wrap gap-2 mt-0.5">
                             {row.refAmount && row.refCurrency && (
                               <span className="text-[0.6875rem] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                                Ref: {formatMoney(row.refAmount, row.refCurrency)}
+                                Ref:{" "}
+                                {formatMoney(row.refAmount, row.refCurrency)}
                               </span>
                             )}
                             {row.type === "YIELD" && (
@@ -698,10 +889,14 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                           </td>
                         )}
                         <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600">
-                          {isPositive ? formatMoney(row.amount, row.currency) : "—"}
+                          {isPositive
+                            ? formatMoney(row.amount, row.currency)
+                            : "—"}
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-rose-600">
-                          {!isPositive ? formatMoney(row.amount, row.currency) : "—"}
+                          {!isPositive
+                            ? formatMoney(row.amount, row.currency)
+                            : "—"}
                         </td>
                         <td
                           className={`px-4 py-3 text-right whitespace-nowrap font-semibold ${
@@ -717,7 +912,9 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                                 type="button"
                                 onClick={() => openEditTx(row)}
                                 title="Editar"
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                                aria-label={`Editar ${row.concept}`}
+                                disabled={isPending}
+                                className="icon-button"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
@@ -727,7 +924,8 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                               onClick={() => handleDeleteTx(row)}
                               disabled={isPending}
                               title="Eliminar"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                              aria-label={`Eliminar ${row.concept}`}
+                              className="icon-button hover:text-rose-700 hover:bg-rose-50"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -790,16 +988,29 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
 
       {/* Modal Crear / Editar Movimiento */}
       {txModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-xl border border-slate-200 space-y-4">
+        <Modal
+          labelledBy="transaction-title"
+          onClose={() => setTxModalOpen(false)}
+          busy={isPending}
+        >
+          <fieldset
+            disabled={isPending}
+            className="min-w-0 p-4 sm:p-6 space-y-4"
+          >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">
-                {editingTx ? "Editar movimiento" : `Nuevo movimiento · ${person.name}`}
+              <h3
+                id="transaction-title"
+                className="text-base font-semibold text-slate-900"
+              >
+                {editingTx
+                  ? "Editar movimiento"
+                  : `Nuevo movimiento · ${person.name}`}
               </h3>
               <button
                 type="button"
                 onClick={() => setTxModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                aria-label="Cerrar formulario de movimiento"
+                className="icon-button"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -857,7 +1068,9 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                       </label>
                       <select
                         value={txToAccountId}
-                        onChange={(e) => setTxToAccountId(Number(e.target.value))}
+                        onChange={(e) =>
+                          setTxToAccountId(Number(e.target.value))
+                        }
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
                       >
                         {accounts.map((a) => (
@@ -955,7 +1168,10 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
               </div>
 
               {formError && (
-                <p className="text-xs text-rose-600 bg-rose-50 px-3 py-2 rounded-lg">
+                <p
+                  role="alert"
+                  className="text-xs text-rose-600 bg-rose-50 px-3 py-2 rounded-lg"
+                >
                   {formError}
                 </p>
               )}
@@ -977,30 +1193,42 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </fieldset>
+        </Modal>
       )}
 
       {/* Modal Acceso Familiar (Link + PIN) */}
       {shareOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+        <Modal
+          labelledBy="share-title"
+          onClose={() => setShareOpen(false)}
+          busy={isPending}
+        >
+          <fieldset
+            disabled={isPending}
+            className="min-w-0 p-4 sm:p-6 space-y-4"
+          >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3
+                id="share-title"
+                className="text-base font-semibold text-slate-900"
+              >
                 Acceso Familiar · {person.name}
               </h3>
               <button
                 type="button"
                 onClick={() => setShareOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                aria-label="Cerrar acceso familiar"
+                className="icon-button"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <p className="text-xs text-slate-500">
-              Con este enlace privado, {person.name} puede consultar su saldo, subcuentas,
-              movimientos y boletas en <strong>modo solo lectura</strong> sin ver cuentas de nadie más.
+              Con este enlace privado, {person.name} puede consultar su saldo,
+              subcuentas, movimientos y boletas en{" "}
+              <strong>modo solo lectura</strong> sin ver cuentas de nadie más.
             </p>
 
             <ToggleSwitch
@@ -1043,7 +1271,8 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
 
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
-                Contraseña de acceso (opcional; sirve para entrar por /login o con el link)
+                Contraseña de acceso (opcional; sirve para entrar por /login o
+                con el link)
               </label>
               <input
                 type="text"
@@ -1085,70 +1314,77 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+          </fieldset>
+        </Modal>
       )}
 
       {/* Modal Nueva Subcuenta */}
       {newAccOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <form
-            onSubmit={handleCreateSubaccount}
-            className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-200 space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">
-                Nueva subcuenta · {person.name}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setNewAccOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Nombre (ej: Mercado Pago, Banco Galicia, Invertido)
-              </label>
-              <input
-                type="text"
-                required
-                autoFocus
-                value={newAccName}
-                onChange={(e) => setNewAccName(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Saldo inicial ({person.defaultCurrency})
-              </label>
-              <MoneyInput
-                value={newAccBalance}
-                onChange={setNewAccBalance}
-                currency={person.defaultCurrency}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setNewAccOpen(false)}
-                className="min-h-11 px-3.5 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isPending}
-                className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
-              >
-                Crear
-              </button>
-            </div>
+        <Modal
+          labelledBy="account-title"
+          onClose={() => setNewAccOpen(false)}
+          busy={isPending}
+        >
+          <form onSubmit={handleCreateSubaccount} className="p-4 sm:p-6">
+            <fieldset disabled={isPending} className="min-w-0 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3
+                  id="account-title"
+                  className="text-base font-semibold text-slate-900"
+                >
+                  Nueva subcuenta · {person.name}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setNewAccOpen(false)}
+                  aria-label="Cerrar nueva subcuenta"
+                  className="icon-button"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Nombre (ej: Mercado Pago, Banco Galicia, Invertido)
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={newAccName}
+                  onChange={(e) => setNewAccName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Saldo inicial ({person.defaultCurrency})
+                </label>
+                <MoneyInput
+                  value={newAccBalance}
+                  onChange={setNewAccBalance}
+                  currency={person.defaultCurrency}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewAccOpen(false)}
+                  className="min-h-11 px-3.5 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                >
+                  Crear
+                </button>
+              </div>
+            </fieldset>
           </form>
-        </div>
+        </Modal>
       )}
     </div>
   );

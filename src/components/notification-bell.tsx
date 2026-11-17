@@ -98,7 +98,8 @@ export function NotificationBell({
         onClick={() => setOpen((v) => !v)}
         title="Notificaciones de vencimientos"
         aria-label="Notificaciones de vencimientos"
-        className="relative inline-flex items-center justify-center min-h-10 min-w-10 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        aria-expanded={open}
+        className="relative inline-flex items-center justify-center min-h-11 min-w-11 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
       >
         <Bell className="w-4 h-4" />
         {count > 0 && (

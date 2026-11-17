@@ -2,10 +2,10 @@
 
 import { useState, useMemo, useOptimistic, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Plus,
   Sparkles,
   CheckCircle2,
@@ -16,6 +16,10 @@ import {
   FilterX,
   History,
   X,
+  Search,
+  SlidersHorizontal,
+  CalendarDays,
+  Info,
 } from "lucide-react";
 import type { PersonCardSummary } from "@/lib/queries";
 import {
@@ -33,10 +37,18 @@ import {
   parseMoneyInput,
   shiftPeriod,
   todayISO,
+  currentPeriodISO,
 } from "@/lib/format";
-import { InlineMoneyCell, MoneyInput, ToggleSwitch } from "@/components/ui-controls";
+import {
+  InlineMoneyCell,
+  MoneyInput,
+  ToggleSwitch,
+} from "@/components/ui-controls";
+import { FeedbackBanner, EmptyState } from "@/components/ui-feedback";
+import { PaymentMobileCard } from "@/components/payment-mobile-card";
+import { Modal } from "@/components/modal";
 
-interface MonthlyItemRow {
+export interface MonthlyItemRow {
   id: number;
   period: string;
   billedPeriod: string | null;
@@ -77,7 +89,6 @@ export function MonthlyPaymentsClient({
   initialTab: "grilla" | "resumen";
   initialPersonFilter: number | "ALL";
 }) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const [{ items, carryOverItems }, removeOptimisticItem] = useOptimistic(
@@ -85,7 +96,7 @@ export function MonthlyPaymentsClient({
     (current, deletedId: number) => ({
       items: current.items.filter((i) => i.id !== deletedId),
       carryOverItems: current.carryOverItems.filter((i) => i.id !== deletedId),
-    })
+    }),
   );
 
   const [tab, setTab] = useState<"grilla" | "resumen">(initialTab);
@@ -97,9 +108,15 @@ export function MonthlyPaymentsClient({
   const [colOrigin, setColOrigin] = useState<
     "ALL" | "CURRENT" | "CARRYOVER" | "ARREARS" | "EXTRA"
   >("ALL");
-  const [colPerson, setColPerson] = useState<number | "ALL">(initialPersonFilter);
-  const [colAmountState, setColAmountState] = useState<"ALL" | "WITH" | "WITHOUT">("ALL");
-  const [colSettled, setColSettled] = useState<"ALL" | "SETTLED" | "UNSETTLED">("ALL");
+  const [colPerson, setColPerson] = useState<number | "ALL">(
+    initialPersonFilter,
+  );
+  const [colAmountState, setColAmountState] = useState<
+    "ALL" | "WITH" | "WITHOUT"
+  >("ALL");
+  const [colSettled, setColSettled] = useState<"ALL" | "SETTLED" | "UNSETTLED">(
+    "ALL",
+  );
 
   // Ordenamiento
   const [sortField, setSortField] = useState<SortField>("dueDate");
@@ -108,7 +125,7 @@ export function MonthlyPaymentsClient({
   // Modal Agregar Extra / Ítem del Mes
   const [extraOpen, setExtraOpen] = useState(false);
   const [extraPersonId, setExtraPersonId] = useState<number>(
-    initialPersonFilter !== "ALL" ? initialPersonFilter : (people[0]?.id ?? 0)
+    initialPersonFilter !== "ALL" ? initialPersonFilter : (people[0]?.id ?? 0),
   );
   const [extraKind, setExtraKind] = useState<"EXTRA" | "SERVICE">("EXTRA");
   const [extraConcept, setExtraConcept] = useState("");
@@ -118,11 +135,34 @@ export function MonthlyPaymentsClient({
   const [extraPaid, setExtraPaid] = useState(true);
 
   // Modal Liquidar Resumen de Persona en Subcuenta
-  const [settleModalPerson, setSettleModalPerson] = useState<PersonCardSummary | null>(null);
+  const [settleModalPerson, setSettleModalPerson] =
+    useState<PersonCardSummary | null>(null);
   const [settleAccountId, setSettleAccountId] = useState<number>(0);
   const [settleDate, setSettleDate] = useState<string>(todayISO());
   const [settleConcept, setSettleConcept] = useState<string>("");
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<{
+    message: string;
+    retry: () => Promise<void>;
+  } | null>(null);
+
+  function runAction(operation: () => Promise<void>) {
+    startTransition(async () => {
+      setActionError(null);
+      setFeedback(null);
+      try {
+        await operation();
+      } catch (err) {
+        setActionError({
+          message:
+            err instanceof Error
+              ? err.message
+              : "Lamentablemente no se pudo completar la acción.",
+          retry: operation,
+        });
+      }
+    });
+  }
 
   const prevPeriod = shiftPeriod(period, -1);
   const nextPeriod = shiftPeriod(period, 1);
@@ -199,7 +239,9 @@ export function MonthlyPaymentsClient({
       }
       let cmp = 0;
       if (sortField === "dueDate") {
-        cmp = (a.dueDate ?? "9999-99-99").localeCompare(b.dueDate ?? "9999-99-99");
+        cmp = (a.dueDate ?? "9999-99-99").localeCompare(
+          b.dueDate ?? "9999-99-99",
+        );
       } else if (sortField === "concept") {
         cmp = a.concept.localeCompare(b.concept, "es");
       } else if (sortField === "person") {
@@ -225,56 +267,57 @@ export function MonthlyPaymentsClient({
 
   const totalFiltered = filteredAndSorted.reduce(
     (acc, i) => acc + Number(i.amount ?? 0),
-    0
+    0,
   );
   const pendingFilteredCount = filteredAndSorted.filter(
-    (i) => i.status === "PENDING"
+    (i) => i.status === "PENDING",
   ).length;
   const paidFilteredTotal = filteredAndSorted
     .filter((i) => i.status === "PAID")
     .reduce((acc, i) => acc + Number(i.amount ?? 0), 0);
 
   function handleGenerateMonth() {
-    startTransition(async () => {
+    runAction(async () => {
       const res = await generateMonthItemsAction(period);
       setFeedback(
         res.added > 0
           ? `Se agregaron ${res.added} servicios activos a ${formatPeriodLabel(period)}`
-          : "Todos los servicios activos ya están cargados en este mes"
+          : "Todos los servicios activos ya están cargados en este mes",
       );
-      router.refresh();
     });
   }
 
   function handleTogglePaid(item: MonthlyItemRow) {
     const nextStatus = item.status === "PAID" ? "PENDING" : "PAID";
-    startTransition(async () => {
+    runAction(async () => {
       await updateMonthlyItemAction({
         id: item.id,
         status: nextStatus,
       });
-      router.refresh();
+      setFeedback(
+        nextStatus === "PAID"
+          ? `Se marcó ${item.concept} como pagado. Esto no descuenta dinero de la cuenta.`
+          : `Se marcó ${item.concept} como pendiente.`,
+      );
     });
   }
 
   function handleSaveAmount(item: MonthlyItemRow, nextNum: number | null) {
-    startTransition(async () => {
+    runAction(async () => {
       await updateMonthlyItemAction({
         id: item.id,
         amount: nextNum,
       });
-      router.refresh();
     });
   }
 
   function handleBlurDueDate(item: MonthlyItemRow, nextDate: string) {
     if ((item.dueDate ?? "") === nextDate) return;
-    startTransition(async () => {
+    runAction(async () => {
       await updateMonthlyItemAction({
         id: item.id,
         dueDate: nextDate || null,
       });
-      router.refresh();
     });
   }
 
@@ -283,7 +326,7 @@ export function MonthlyPaymentsClient({
     if (!extraConcept.trim()) return;
     const amt = parseMoneyInput(extraAmount);
 
-    startTransition(async () => {
+    runAction(async () => {
       await addMonthlyItemAction({
         period,
         billedPeriod: extraIsArrears ? shiftPeriod(period, -1) : period,
@@ -298,11 +341,12 @@ export function MonthlyPaymentsClient({
       setExtraAmount("");
       setExtraIsArrears(false);
       setExtraOpen(false);
-      router.refresh();
+      setFeedback("Gasto agregado al mes.");
     });
   }
 
   function openSettlePersonModal(p: PersonCardSummary) {
+    setActionError(null);
     setSettleModalPerson(p);
     setSettleAccountId(p.accounts[0]?.id ?? 0);
     setSettleDate(todayISO());
@@ -312,23 +356,19 @@ export function MonthlyPaymentsClient({
   function handleConfirmSettleSummary(e: React.FormEvent) {
     e.preventDefault();
     if (!settleModalPerson || !settleAccountId) return;
-    startTransition(async () => {
-      try {
-        const res = await settlePersonMonthSummaryAction({
-          period,
-          personId: settleModalPerson.id,
-          accountId: settleAccountId,
-          date: settleDate,
-          customConcept: settleConcept,
-        });
-        setFeedback(
-          `Descontado ${formatMoney(res.total, "ARS")} (${res.count} ítems) en la cuenta de ${settleModalPerson.name}`
-        );
-        setSettleModalPerson(null);
-        router.refresh();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Error al descontar");
-      }
+    const person = settleModalPerson;
+    runAction(async () => {
+      const res = await settlePersonMonthSummaryAction({
+        period,
+        personId: person.id,
+        accountId: settleAccountId,
+        date: settleDate,
+        customConcept: settleConcept,
+      });
+      setFeedback(
+        `Descontado ${formatMoney(res.total, "ARS")} (${res.count} ítems) en la cuenta de ${person.name}`,
+      );
+      setSettleModalPerson(null);
     });
   }
 
@@ -338,57 +378,182 @@ export function MonthlyPaymentsClient({
     const targetAcc = owner.accounts[0];
     if (
       !confirm(
-        `¿Descontar "${item.concept}" (${formatMoney(item.amount, "ARS")}) en la cuenta ${targetAcc.name} de ${owner.name}?`
+        `¿Descontar "${item.concept}" (${formatMoney(item.amount, "ARS")}) en la cuenta ${targetAcc.name} de ${owner.name}?`,
       )
     ) {
       return;
     }
-    startTransition(async () => {
-      try {
-        await settleSingleMonthlyItemAction({
-          itemId: item.id,
-          accountId: targetAcc.id,
-        });
-        router.refresh();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Error al descontar");
-      }
+    runAction(async () => {
+      await settleSingleMonthlyItemAction({
+        itemId: item.id,
+        accountId: targetAcc.id,
+      });
+      setFeedback(`${item.concept} se descontó de ${targetAcc.name}.`);
     });
   }
+
+  function handleDeleteItem(item: MonthlyItemRow) {
+    if (
+      !confirm(
+        `¿Quitar "${item.concept}" de ${formatPeriodLabel(item.period)}? No se elimina del catálogo ni se revierte un descuento ya registrado.`,
+      )
+    )
+      return;
+    runAction(async () => {
+      removeOptimisticItem(item.id);
+      await deleteMonthlyItemAction(item.id);
+      setFeedback(`${item.concept} se quitó del listado.`);
+    });
+  }
+
+  function openExtra(personId?: number) {
+    if (personId) setExtraPersonId(personId);
+    else if (colPerson !== "ALL") setExtraPersonId(colPerson);
+    setExtraDueDate(`${period}-15`);
+    setActionError(null);
+    setExtraOpen(true);
+  }
+
+  const monthTotal = items.reduce(
+    (total, item) => total + Number(item.amount ?? 0),
+    0,
+  );
+  const monthPaid = items
+    .filter((item) => item.status === "PAID")
+    .reduce((total, item) => total + Number(item.amount ?? 0), 0);
+  const monthPending = items.filter((item) => item.status === "PENDING");
+  const errorNotice = actionError && (
+    <FeedbackBanner
+      error
+      message={actionError.message}
+      busy={isPending}
+      onRetry={() => runAction(actionError.retry)}
+      onDismiss={() => setActionError(null)}
+    />
+  );
 
   const peopleForFilter = people.filter(
     (p) =>
       p.defaultCurrency === "ARS" ||
       items.some((i) => i.personId === p.id) ||
-      carryOverItems.some((i) => i.personId === p.id)
+      carryOverItems.some((i) => i.personId === p.id),
   );
 
   return (
-    <div className="space-y-5">
-      {/* Navegador de Mes + Acciones */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <p className="eyebrow hidden sm:block">Organizá tus vencimientos</p>
+          <h1 className="page-title">Pagos mensuales</h1>
+          <p className="hidden text-sm text-slate-500 sm:block">
+            Servicios, gastos y descuentos en un solo lugar.
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Agregar gasto"
+          disabled={people.length === 0 || isPending}
+          onClick={() => openExtra()}
+          className="btn-primary self-start"
+        >
+          <Plus className="size-4" />
+          <span className="hidden sm:inline">Agregar gasto</span>
+        </button>
+      </div>
+      {/* El resumen siempre corresponde al mes; los arrastres y filtros se detallan abajo. */}
+      <details className="panel group sm:hidden">
+        <summary className="flex min-h-14 cursor-pointer list-none flex-wrap items-center justify-between gap-2 rounded-2xl px-4 py-3">
+          <span className="text-xs text-slate-500">Pendiente del mes</span>
+          <span className="ml-auto text-right text-base font-semibold tabular-nums">
+            {formatMoney(monthTotal - monthPaid, "ARS")}
+          </span>
+          <ChevronDown className="size-4 text-slate-400 transition-transform group-open:rotate-180" />
+        </summary>
+        <dl className="space-y-3 border-t border-slate-100 p-4 text-sm">
+          <div className="flex flex-wrap justify-between gap-2">
+            <dt className="text-slate-500">Total del mes</dt>
+            <dd className="text-right tabular-nums">
+              {formatMoney(monthTotal, "ARS")}
+            </dd>
+          </div>
+          <div className="flex flex-wrap justify-between gap-2">
+            <dt className="text-slate-500">Pagado</dt>
+            <dd className="text-right tabular-nums">
+              {formatMoney(monthPaid, "ARS")}
+            </dd>
+          </div>
+          <div className="flex flex-wrap justify-between gap-2">
+            <dt className="text-slate-500">Pendientes</dt>
+            <dd className="text-right tabular-nums">
+              {monthPending.length} ·{" "}
+              {monthPending.filter((i) => i.amount === null).length} sin importe
+            </dd>
+          </div>
+        </dl>
+      </details>
+      <div className="panel hidden divide-slate-100 sm:grid sm:grid-cols-3 sm:divide-x">
+        {[
+          {
+            label: "Total del mes",
+            value: monthTotal,
+            detail: `${items.length} conceptos cargados`,
+          },
+          {
+            label: "Pagado",
+            value: monthPaid,
+            detail: "Pagos registrados del mes",
+          },
+          {
+            label: "Pendiente de pago",
+            value: monthTotal - monthPaid,
+            detail: `${monthPending.length} pendientes · ${monthPending.filter((i) => i.amount === null).length} sin importe`,
+          },
+        ].map((metric) => (
+          <div
+            key={metric.label}
+            className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-4 py-3 sm:block sm:p-6"
+          >
+            <p className="text-xs font-medium text-slate-500">{metric.label}</p>
+            <p className="break-words text-right text-lg font-semibold tracking-tight text-slate-900 tabular-nums sm:mt-2 sm:text-left sm:text-2xl">
+              {formatMoney(metric.value, "ARS")}
+            </p>
+            <p className="hidden text-xs text-slate-500 tabular-nums sm:mt-1 sm:block">
+              {metric.detail}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <CalendarDays
+            className="mr-1 hidden size-4 text-slate-500 sm:block"
+            aria-hidden="true"
+          />
           <Link
-            href={`/pagos?periodo=${prevPeriod}&tab=${tab}`}
-            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700"
+            href={`/pagos?periodo=${prevPeriod}&tab=${tab}${colPerson !== "ALL" ? `&persona=${colPerson}` : ""}`}
+            aria-label="Ver mes anterior"
+            className="icon-button border border-slate-200 bg-white"
           >
             <ChevronLeft className="w-4 h-4" />
           </Link>
-          <div className="min-w-48 text-center">
-            <h1 className="text-xl font-bold text-slate-900">
+          <div className="min-w-0 flex-1 px-1 text-center sm:flex-none">
+            <h2 className="text-sm font-semibold text-slate-900 tabular-nums">
               {formatPeriodLabel(period)}
-            </h1>
-            <p className="text-xs text-slate-500 tabular-nums">
-              Total listado: <span className="font-semibold text-slate-700">{formatMoney(totalFiltered, "ARS")}</span> ·{" "}
-              {pendingFilteredCount} pendientes
-            </p>
+            </h2>
           </div>
           <Link
-            href={`/pagos?periodo=${nextPeriod}&tab=${tab}`}
-            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700"
+            href={`/pagos?periodo=${nextPeriod}&tab=${tab}${colPerson !== "ALL" ? `&persona=${colPerson}` : ""}`}
+            aria-label="Ver mes siguiente"
+            className="icon-button border border-slate-200 bg-white"
           >
             <ChevronRight className="w-4 h-4" />
           </Link>
+          {period !== currentPeriodISO() && (
+            <Link href={`/pagos?tab=${tab}`} className="btn-ghost text-xs">
+              Mes actual
+            </Link>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -397,92 +562,222 @@ export function MonthlyPaymentsClient({
               type="button"
               disabled={isPending}
               onClick={handleGenerateMonth}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium hover:bg-slate-100 transition cursor-pointer"
+              className="btn-secondary text-xs"
             >
-              <Sparkles className="w-4 h-4 text-amber-500" />
+              <Sparkles className="w-4 h-4" />
               Traer servicios fijos ({missingServicesCount})
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              if (colPerson !== "ALL") setExtraPersonId(colPerson);
-              setExtraDueDate(`${period}-15`);
-              setExtraOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs sm:text-sm font-medium hover:bg-slate-800 transition cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            Extra / Gasto del mes
-          </button>
         </div>
       </div>
 
       {feedback && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs sm:text-sm px-4 py-2.5 rounded-xl flex items-center justify-between">
-          <span>{feedback}</span>
-          <button
-            type="button"
-            onClick={() => setFeedback(null)}
-            className="text-emerald-700 font-bold cursor-pointer"
-          >
-            ×
-          </button>
+        <div className="sticky top-36 z-20 lg:top-20">
+          <FeedbackBanner
+            message={feedback}
+            onDismiss={() => setFeedback(null)}
+          />
         </div>
       )}
+      {!extraOpen && !settleModalPerson && actionError && (
+        <div className="sticky top-36 z-20 lg:top-20">{errorNotice}</div>
+      )}
+      <p role="status" className="sr-only">
+        {isPending ? "Enviando los cambios…" : ""}
+      </p>
 
       {/* Pestañas + Toggle de Impagos Arrastrados de Meses Anteriores */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="inline-flex bg-slate-200/70 p-1 rounded-xl text-xs sm:text-sm font-semibold self-start">
+        <div className="inline-flex w-full rounded-xl border border-slate-200 bg-slate-100 p-1 text-sm font-medium sm:w-auto">
           <button
             type="button"
+            aria-pressed={tab === "grilla"}
             onClick={() => setTab("grilla")}
-            className={`px-4 py-1.5 rounded-lg transition cursor-pointer ${
-              tab === "grilla" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600"
+            className={`min-h-11 flex-1 px-3 py-2 rounded-lg transition cursor-pointer ${
+              tab === "grilla"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-600"
             }`}
           >
-            Grilla de Vencimientos
+            Vencimientos
           </button>
           <button
             type="button"
+            aria-pressed={tab === "resumen"}
             onClick={() => setTab("resumen")}
-            className={`px-4 py-1.5 rounded-lg transition cursor-pointer ${
-              tab === "resumen" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600"
+            className={`min-h-11 flex-1 px-3 py-2 rounded-lg transition cursor-pointer ${
+              tab === "resumen"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-600"
             }`}
           >
-            Resumen y Descuento por Persona
+            Por persona
           </button>
         </div>
 
         {tab === "grilla" && carryOverItems.length > 0 && (
-          <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 px-3.5 py-2 rounded-xl">
+          <div className="flex items-center gap-2 text-slate-500">
             <History className="w-4 h-4 text-amber-600 shrink-0" />
             <ToggleSwitch
               checked={showCarryOver}
               onChange={setShowCarryOver}
               activeColor="slate"
-              label={`Incluir impagos de meses anteriores (${carryOverItems.length})`}
+              label={`Incluir pendientes anteriores (${carryOverItems.length})`}
             />
           </div>
         )}
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="flex max-w-lg items-start gap-2 text-xs text-slate-500">
+          <Info className="mt-0.5 size-4 shrink-0" />
+          {tab === "grilla"
+            ? "Marcar como pagado no descuenta saldo. Usá «Descontar» para registrar el egreso en la cuenta."
+            : "Este resumen incluye solo los gastos del mes seleccionado, sin pendientes anteriores."}
+        </p>
+        <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+          Persona
+          <select
+            aria-label="Filtrar por persona"
+            value={colPerson}
+            onChange={(e) =>
+              setColPerson(
+                e.target.value === "ALL" ? "ALL" : Number(e.target.value),
+              )
+            }
+            className="field w-auto"
+          >
+            <option value="ALL">Todas las personas</option>
+            {peopleForFilter.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {tab === "grilla" ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="space-y-3 border-b border-slate-200 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-slate-400" />
+                <input
+                  type="search"
+                  aria-label="Buscar servicio o nota"
+                  placeholder="Buscar servicio o nota…"
+                  value={colConcept}
+                  onChange={(e) => setColConcept(e.target.value)}
+                  className="field pl-10"
+                />
+              </div>
+              <div
+                className="flex gap-1 rounded-lg bg-slate-100 p-1"
+                role="group"
+                aria-label="Estado del pago"
+              >
+                {(
+                  [
+                    ["ALL", "Todos"],
+                    ["PENDING", "Pendientes"],
+                    ["PAID", "Pagados"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={colStatus === value}
+                    onClick={() => setColStatus(value)}
+                    className={`min-h-11 flex-1 rounded-md px-3 text-xs font-medium ${colStatus === value ? "bg-white text-slate-900 shadow-xs" : "text-slate-600 hover:bg-slate-200/50"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <details className="group">
+              <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                <SlidersHorizontal className="size-4" />
+                Más filtros
+                {(colOrigin !== "ALL" ||
+                  colAmountState !== "ALL" ||
+                  colSettled !== "ALL") && (
+                  <span className="rounded-md bg-slate-100 px-2 py-1">
+                    Activos
+                  </span>
+                )}
+              </summary>
+              <div className="grid gap-4 pt-3 sm:grid-cols-3">
+                <label className="field-label">
+                  Origen
+                  <select
+                    value={colOrigin}
+                    onChange={(e) =>
+                      setColOrigin(e.target.value as typeof colOrigin)
+                    }
+                    className="field mt-1"
+                  >
+                    <option value="ALL">Todos los orígenes</option>
+                    <option value="CURRENT">Del mes seleccionado</option>
+                    <option value="CARRYOVER">Pendientes anteriores</option>
+                    <option value="ARREARS">Mes vencido</option>
+                    <option value="EXTRA">Extras</option>
+                  </select>
+                </label>
+                <label className="field-label">
+                  Importe
+                  <select
+                    value={colAmountState}
+                    onChange={(e) =>
+                      setColAmountState(e.target.value as typeof colAmountState)
+                    }
+                    className="field mt-1"
+                  >
+                    <option value="ALL">Con y sin importe</option>
+                    <option value="WITH">Con importe</option>
+                    <option value="WITHOUT">Sin importe</option>
+                  </select>
+                </label>
+                <label className="field-label">
+                  Descuento en cuenta
+                  <select
+                    value={colSettled}
+                    onChange={(e) =>
+                      setColSettled(e.target.value as typeof colSettled)
+                    }
+                    className="field mt-1"
+                  >
+                    <option value="ALL">Todos</option>
+                    <option value="SETTLED">Descontados</option>
+                    <option value="UNSETTLED">Sin descontar</option>
+                  </select>
+                </label>
+              </div>
+            </details>
+          </div>
           {/* Barra superior de resumen de filtros */}
           <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-            <div className="flex flex-wrap items-center gap-3 tabular-nums">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
               <span>
                 Mostrando <strong>{filteredAndSorted.length}</strong> de{" "}
                 {combinedSource.length} ítems
               </span>
-              <span>·</span>
+              <span className="hidden sm:inline">·</span>
+              <span>{pendingFilteredCount} pendientes</span>
+              <span className="hidden sm:inline">·</span>
               <span>
-                Pagado: <strong className="text-emerald-700">{formatMoney(paidFilteredTotal, "ARS")}</strong>
+                Pagado:{" "}
+                <strong className="text-emerald-700">
+                  {formatMoney(paidFilteredTotal, "ARS")}
+                </strong>
               </span>
-              <span>·</span>
+              <span className="hidden sm:inline">·</span>
               <span>
-                Total: <strong className="text-slate-900">{formatMoney(totalFiltered, "ARS")}</strong>
+                Total:{" "}
+                <strong className="text-slate-900">
+                  {formatMoney(totalFiltered, "ARS")}
+                </strong>
               </span>
             </div>
 
@@ -498,12 +793,103 @@ export function MonthlyPaymentsClient({
             )}
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="md:hidden">
+            <label className="flex items-center justify-end gap-2 border-b border-slate-100 px-4 py-2 text-xs text-slate-500">
+              Ordenar
+              <select
+                aria-label="Orden de los pagos"
+                className="field w-auto"
+                value={`${sortField}-${sortDir}`}
+                onChange={(e) => {
+                  const [field, dir] = e.target.value.split("-");
+                  setSortField(field as SortField);
+                  setSortDir(dir as "asc" | "desc");
+                }}
+              >
+                <option value="dueDate-asc">Vencimiento ↑</option>
+                <option value="dueDate-desc">Vencimiento ↓</option>
+                <option value="concept-asc">Servicio A–Z</option>
+                <option value="concept-desc">Servicio Z–A</option>
+                <option value="amount-desc">Mayor importe</option>
+                <option value="amount-asc">Menor importe</option>
+                <option value="person-asc">Persona A–Z</option>
+                <option value="person-desc">Persona Z–A</option>
+                <option value="status-asc">Pagados primero</option>
+                <option value="status-desc">Pendientes primero</option>
+              </select>
+            </label>
+            <div className="divide-y divide-slate-200">
+              {filteredAndSorted.map((item) => (
+                <PaymentMobileCard
+                  key={item.id}
+                  item={item}
+                  busy={isPending}
+                  canSettle={Boolean(
+                    people.find(
+                      (p) =>
+                        p.id === item.personId &&
+                        p.hasManagedAccount &&
+                        p.accounts.length > 0,
+                    ) &&
+                    !item.settledTransactionId &&
+                    Number(item.amount ?? 0) > 0,
+                  )}
+                  onTogglePaid={() => handleTogglePaid(item)}
+                  onAmount={(amount) => handleSaveAmount(item, amount)}
+                  onDate={(date) => handleBlurDueDate(item, date)}
+                  onSettle={() => handleSettleSingleItem(item)}
+                  onDelete={() => handleDeleteItem(item)}
+                />
+              ))}
+            </div>
+            {filteredAndSorted.length === 0 && (
+              <EmptyState
+                title={
+                  hasActiveFilters
+                    ? "No encontramos coincidencias"
+                    : "Todavía no hay gastos"
+                }
+                description={
+                  hasActiveFilters
+                    ? "Probá otro concepto o quitá los filtros para ver más pagos."
+                    : "Agregá un gasto o traé los servicios del catálogo para empezar."
+                }
+                action={
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={
+                      isPending || (!hasActiveFilters && people.length === 0)
+                    }
+                    onClick={
+                      hasActiveFilters ? clearAllFilters : () => openExtra()
+                    }
+                  >
+                    {hasActiveFilters ? "Limpiar filtros" : "Agregar gasto"}
+                  </button>
+                }
+              />
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
+              <caption className="sr-only">
+                Vencimientos de {formatPeriodLabel(period)}. Los importes y
+                fechas se pueden editar.
+              </caption>
               <thead className="bg-slate-50 text-xs text-slate-500 border-b border-slate-200">
                 {/* Fila 1: Títulos ordenables */}
                 <tr className="uppercase">
-                  <th className="w-24 px-3 py-2.5 text-center font-semibold">
+                  <th
+                    aria-sort={
+                      sortField === "status"
+                        ? sortDir === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
+                    className="w-24 px-3 py-2.5 text-center font-semibold"
+                  >
                     <button
                       type="button"
                       onClick={() => toggleSort("status")}
@@ -513,17 +899,35 @@ export function MonthlyPaymentsClient({
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-left px-3 py-2.5 font-semibold">
+                  <th
+                    aria-sort={
+                      sortField === "concept"
+                        ? sortDir === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
+                    className="text-left px-3 py-2.5 font-semibold"
+                  >
                     <button
                       type="button"
                       onClick={() => toggleSort("concept")}
                       className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
                     >
-                      Servicio / Concepto
+                      Concepto
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-left px-3 py-2.5 font-semibold">
+                  <th
+                    aria-sort={
+                      sortField === "person"
+                        ? sortDir === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
+                    className="text-left px-3 py-2.5 font-semibold"
+                  >
                     <button
                       type="button"
                       onClick={() => toggleSort("person")}
@@ -533,7 +937,16 @@ export function MonthlyPaymentsClient({
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-left px-3 py-2.5 font-semibold">
+                  <th
+                    aria-sort={
+                      sortField === "dueDate"
+                        ? sortDir === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
+                    className="text-right px-3 py-2.5 font-semibold"
+                  >
                     <button
                       type="button"
                       onClick={() => toggleSort("dueDate")}
@@ -543,7 +956,16 @@ export function MonthlyPaymentsClient({
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-right px-3 py-2.5 font-semibold">
+                  <th
+                    aria-sort={
+                      sortField === "amount"
+                        ? sortDir === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
+                    className="text-right px-3 py-2.5 font-semibold"
+                  >
                     <button
                       type="button"
                       onClick={() => toggleSort("amount")}
@@ -553,141 +975,59 @@ export function MonthlyPaymentsClient({
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-center px-3 py-2.5 font-semibold">Cuenta</th>
-                  <th className="w-10 px-2 py-2.5"></th>
-                </tr>
-
-                {/* Fila 2: Filtros por columna */}
-                <tr className="border-t border-slate-200/80 bg-slate-100/70">
-                  <th className="px-2 py-2">
-                    <select
-                      value={colStatus}
-                      onChange={(e) =>
-                        setColStatus(e.target.value as "ALL" | "PENDING" | "PAID")
-                      }
-                      className="w-full px-1.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
-                    >
-                      <option value="ALL">Todos</option>
-                      <option value="PENDING">Pendientes</option>
-                      <option value="PAID">Pagados</option>
-                    </select>
+                  <th className="text-center px-3 py-2.5 font-semibold">
+                    Cuenta
                   </th>
-                  <th className="px-2 py-2">
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        value={colConcept}
-                        onChange={(e) => setColConcept(e.target.value)}
-                        placeholder="Filtrar concepto..."
-                        className="flex-1 min-w-28 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400"
-                      />
-                      <select
-                        value={colOrigin}
-                        onChange={(e) =>
-                          setColOrigin(
-                            e.target.value as
-                              | "ALL"
-                              | "CURRENT"
-                              | "CARRYOVER"
-                              | "ARREARS"
-                              | "EXTRA"
-                          )
-                        }
-                        className="px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
-                      >
-                        <option value="ALL">Todo tipo</option>
-                        <option value="CURRENT">Solo del mes</option>
-                        <option value="CARRYOVER">Impagos mes ant.</option>
-                        <option value="ARREARS">Mes vencido</option>
-                        <option value="EXTRA">Extras</option>
-                      </select>
-                    </div>
+                  <th className="w-10 px-2 py-2.5">
+                    <span className="sr-only">Acciones</span>
                   </th>
-                  <th className="px-2 py-2">
-                    <select
-                      value={colPerson === "ALL" ? "ALL" : String(colPerson)}
-                      onChange={(e) =>
-                        setColPerson(
-                          e.target.value === "ALL" ? "ALL" : Number(e.target.value)
-                        )
-                      }
-                      className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
-                    >
-                      <option value="ALL">Todas</option>
-                      {peopleForFilter.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </th>
-                  <th className="px-2 py-2 text-[0.6875rem] font-normal text-slate-400">
-                    Clic en fecha p/ editar
-                  </th>
-                  <th className="px-2 py-2">
-                    <select
-                      value={colAmountState}
-                      onChange={(e) =>
-                        setColAmountState(e.target.value as "ALL" | "WITH" | "WITHOUT")
-                      }
-                      className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
-                    >
-                      <option value="ALL">Todos</option>
-                      <option value="WITH">Con monto</option>
-                      <option value="WITHOUT">Sin monto</option>
-                    </select>
-                  </th>
-                  <th className="px-2 py-2">
-                    <select
-                      value={colSettled}
-                      onChange={(e) =>
-                        setColSettled(
-                          e.target.value as "ALL" | "SETTLED" | "UNSETTLED"
-                        )
-                      }
-                      className="w-full px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-normal text-slate-700"
-                    >
-                      <option value="ALL">Todos</option>
-                      <option value="SETTLED">Descontados</option>
-                      <option value="UNSETTLED">Sin descontar</option>
-                    </select>
-                  </th>
-                  <th className="px-2 py-2"></th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
                 {filteredAndSorted.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400 space-y-2">
-                      <p>No hay servicios que coincidan con el filtro actual.</p>
-                      {hasActiveFilters ? (
-                        <button
-                          type="button"
-                          onClick={clearAllFilters}
-                          className="px-3.5 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-medium cursor-pointer"
-                        >
-                          Quitar filtros
-                        </button>
-                      ) : (
-                        missingServicesCount > 0 && (
+                    <td colSpan={7}>
+                      <EmptyState
+                        title={
+                          hasActiveFilters
+                            ? "No encontramos coincidencias"
+                            : "Todavía no hay gastos"
+                        }
+                        description={
+                          hasActiveFilters
+                            ? "Probá otra búsqueda o quitá los filtros."
+                            : "Agregá un gasto para comenzar a organizar este mes."
+                        }
+                        action={
                           <button
                             type="button"
-                            onClick={handleGenerateMonth}
-                            className="px-3.5 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-medium cursor-pointer"
+                            className="btn-secondary"
+                            disabled={
+                              isPending ||
+                              (!hasActiveFilters && people.length === 0)
+                            }
+                            onClick={
+                              hasActiveFilters
+                                ? clearAllFilters
+                                : () => openExtra()
+                            }
                           >
-                            Generar mes con catálogo activo
+                            {hasActiveFilters
+                              ? "Limpiar filtros"
+                              : "Agregar gasto"}
                           </button>
-                        )
-                      )}
+                        }
+                      />
                     </td>
                   </tr>
                 ) : (
                   filteredAndSorted.map((item) => {
                     const isPaid = item.status === "PAID";
                     const isArrears =
-                      Boolean(item.billedPeriod && item.billedPeriod !== item.period) ||
-                      Boolean(item.service?.paysInArrears);
+                      Boolean(
+                        item.billedPeriod && item.billedPeriod !== item.period,
+                      ) || Boolean(item.service?.paysInArrears);
                     const effectiveBilledPeriod =
                       item.billedPeriod ||
                       (item.service?.paysInArrears
@@ -709,20 +1049,22 @@ export function MonthlyPaymentsClient({
                           item.isCarryOver
                             ? "bg-amber-50/60 hover:bg-amber-50"
                             : isPaid
-                            ? "hover:bg-slate-50/70"
-                            : "bg-slate-50/30 hover:bg-slate-50"
+                              ? "hover:bg-slate-50/70"
+                              : "bg-slate-50/30 hover:bg-slate-50"
                         }`}
                       >
                         <td className="px-3 py-2.5 text-center">
                           <button
                             type="button"
+                            disabled={isPending}
+                            aria-label={`${isPaid ? "Marcar pendiente" : "Marcar pagado"}: ${item.concept}`}
                             onClick={() => handleTogglePaid(item)}
                             title={
                               isPaid
                                 ? "Pagado (clic para pasar a pendiente)"
                                 : "Pendiente (clic para marcar pagado)"
                             }
-                            className="inline-flex items-center gap-1.5 cursor-pointer"
+                            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg cursor-pointer"
                           >
                             {isPaid ? (
                               <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
@@ -753,13 +1095,14 @@ export function MonthlyPaymentsClient({
                             {isArrears && (
                               <span
                                 title={`Se abona en ${formatPeriodLabel(
-                                  item.period
+                                  item.period,
                                 )} pero corresponde al período ${formatPeriodLabel(
-                                  effectiveBilledPeriod
+                                  effectiveBilledPeriod,
                                 )}`}
                                 className="text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/80"
                               >
-                                Período {formatShortPeriodLabel(effectiveBilledPeriod)}
+                                Período{" "}
+                                {formatShortPeriodLabel(effectiveBilledPeriod)}
                               </span>
                             )}
 
@@ -785,14 +1128,21 @@ export function MonthlyPaymentsClient({
                         <td className="px-3 py-2.5 whitespace-nowrap">
                           <input
                             type="date"
+                            key={item.dueDate ?? "sin-fecha"}
+                            aria-label={`Vencimiento de ${item.concept}`}
+                            disabled={isPending}
                             defaultValue={item.dueDate ?? ""}
-                            onBlur={(e) => handleBlurDueDate(item, e.target.value)}
-                            className="px-2 py-1 rounded-lg border border-transparent hover:border-slate-200 focus:border-slate-400 text-xs text-slate-700 bg-transparent focus:bg-white focus:outline-none"
+                            onBlur={(e) =>
+                              handleBlurDueDate(item, e.target.value)
+                            }
+                            className="min-h-11 px-2 py-1 rounded-lg border border-transparent hover:border-slate-200 focus:border-slate-400 text-right text-xs tabular-nums text-slate-700 bg-transparent focus:bg-white"
                           />
                         </td>
 
                         <td className="px-3 py-2.5 text-right whitespace-nowrap">
                           <InlineMoneyCell
+                            disabled={isPending}
+                            label={`Importe de ${item.concept}`}
                             amount={item.amount}
                             currency="ARS"
                             onSave={(val) => handleSaveAmount(item, val)}
@@ -810,9 +1160,10 @@ export function MonthlyPaymentsClient({
                           ) : canSettleIndividually ? (
                             <button
                               type="button"
+                              disabled={isPending}
                               onClick={() => handleSettleSingleItem(item)}
                               title="Descontar este ítem directo en la cuenta de la persona"
-                              className="inline-flex items-center gap-1 text-[0.6875rem] font-medium px-2 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white transition cursor-pointer"
+                              className="btn-secondary px-2 text-xs"
                             >
                               <ArrowDownToLine className="w-3 h-3" />
                               Descontar
@@ -825,22 +1176,10 @@ export function MonthlyPaymentsClient({
                         <td className="px-2 py-2.5 text-right">
                           <button
                             type="button"
-                            onClick={() => {
-                              if (!confirm(`¿Quitar "${item.concept}"?`)) return;
-                              startTransition(async () => {
-                                removeOptimisticItem(item.id);
-                                try {
-                                  await deleteMonthlyItemAction(item.id);
-                                } catch (err) {
-                                  alert(
-                                    err instanceof Error
-                                      ? err.message
-                                      : "Error al quitar el servicio"
-                                  );
-                                }
-                              });
-                            }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                            disabled={isPending}
+                            aria-label={`Quitar ${item.concept}`}
+                            onClick={() => handleDeleteItem(item)}
+                            className="icon-button hover:text-rose-700 hover:bg-rose-50"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -856,340 +1195,410 @@ export function MonthlyPaymentsClient({
       ) : (
         /* PESTAÑA RESUMEN POR PERSONA */
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {peopleForFilter.map((p) => {
-            const pItems = items.filter((i) => i.personId === p.id);
-            const total = pItems.reduce((acc, i) => acc + Number(i.amount ?? 0), 0);
-            const unsettledItems = pItems.filter(
-              (i) => !i.settledTransactionId && Number(i.amount ?? 0) > 0
-            );
-            const unsettledTotal = unsettledItems.reduce(
-              (acc, i) => acc + Number(i.amount ?? 0),
-              0
-            );
+          {peopleForFilter
+            .filter((p) => colPerson === "ALL" || p.id === colPerson)
+            .map((p) => {
+              const pItems = items.filter((i) => i.personId === p.id);
+              const total = pItems.reduce(
+                (acc, i) => acc + Number(i.amount ?? 0),
+                0,
+              );
+              const unsettledItems = pItems.filter(
+                (i) => !i.settledTransactionId && Number(i.amount ?? 0) > 0,
+              );
+              const unsettledTotal = unsettledItems.reduce(
+                (acc, i) => acc + Number(i.amount ?? 0),
+                0,
+              );
 
-            return (
-              <div
-                key={p.id}
-                className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between gap-4"
-              >
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between border-b border-slate-100 pb-3">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">{p.name}</h2>
-                      <p className="text-xs text-slate-500">
-                        {formatPeriodLabel(period)} · {pItems.length} conceptos
-                      </p>
+              return (
+                <div
+                  key={p.id}
+                  className="panel p-4 sm:p-6 flex flex-col justify-between gap-4"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                      <div>
+                        <h2 className="text-base font-medium text-slate-900">
+                          {p.name}
+                        </h2>
+                        <p className="text-xs text-slate-500">
+                          {formatPeriodLabel(period)} · {pItems.length}{" "}
+                          conceptos
+                        </p>
+                      </div>
+                      <div className="text-right tabular-nums">
+                        <p className="text-xs text-slate-400 uppercase font-semibold">
+                          Total Mes
+                        </p>
+                        <p className="text-xl font-bold text-slate-900">
+                          {formatMoney(total, "ARS")}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right tabular-nums">
-                      <p className="text-xs text-slate-400 uppercase font-semibold">
-                        Total Mes
+
+                    {pItems.length === 0 ? (
+                      <p className="text-xs text-slate-400 py-4 text-center">
+                        Sin servicios ni extras en este mes
                       </p>
-                      <p className="text-xl font-bold text-slate-900">
-                        {formatMoney(total, "ARS")}
-                      </p>
-                    </div>
+                    ) : (
+                      <div className="divide-y divide-slate-100 text-sm">
+                        {pItems.map((it) => {
+                          const isArrears =
+                            Boolean(
+                              it.billedPeriod && it.billedPeriod !== it.period,
+                            ) || Boolean(it.service?.paysInArrears);
+                          return (
+                            <div
+                              key={it.id}
+                              className="py-2 flex items-center justify-between gap-2"
+                            >
+                              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                <span className="truncate text-slate-800">
+                                  {it.concept}
+                                </span>
+                                {isArrears && it.billedPeriod && (
+                                  <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold">
+                                    {formatShortPeriodLabel(it.billedPeriod)}
+                                  </span>
+                                )}
+                                {it.kind === "EXTRA" && (
+                                  <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
+                                    Extra
+                                  </span>
+                                )}
+                                {it.settledTransactionId && (
+                                  <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">
+                                    Descontado
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-right font-medium text-slate-900 shrink-0 tabular-nums">
+                                {it.amount
+                                  ? formatMoney(it.amount, "ARS")
+                                  : "Sin monto"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
-                  {pItems.length === 0 ? (
-                    <p className="text-xs text-slate-400 py-4 text-center">
-                      Sin servicios ni extras en este mes
-                    </p>
-                  ) : (
-                    <div className="divide-y divide-slate-100 text-sm">
-                      {pItems.map((it) => {
-                        const isArrears =
-                          Boolean(it.billedPeriod && it.billedPeriod !== it.period) ||
-                          Boolean(it.service?.paysInArrears);
-                        return (
-                          <div
-                            key={it.id}
-                            className="py-2 flex items-center justify-between gap-2"
+                  <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        setExtraKind("EXTRA");
+                        openExtra(p.id);
+                      }}
+                      className="btn-ghost px-2 text-xs"
+                    >
+                      + Agregar extra a {p.name}
+                    </button>
+
+                    {p.hasManagedAccount && p.accounts.length > 0 && (
+                      <div>
+                        {unsettledTotal > 0 ? (
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => openSettlePersonModal(p)}
+                            className="btn-secondary max-w-full whitespace-normal text-xs tabular-nums"
                           >
-                            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                              <span className="truncate text-slate-800">
-                                {it.concept}
-                              </span>
-                              {isArrears && it.billedPeriod && (
-                                <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold">
-                                  {formatShortPeriodLabel(it.billedPeriod)}
-                                </span>
-                              )}
-                              {it.kind === "EXTRA" && (
-                                <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
-                                  Extra
-                                </span>
-                              )}
-                              {it.settledTransactionId && (
-                                <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">
-                                  Descontado
-                                </span>
-                              )}
-                            </div>
-                            <span className="font-semibold text-slate-900 shrink-0 tabular-nums">
-                              {it.amount ? formatMoney(it.amount, "ARS") : "Sin monto"}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                            <ArrowDownToLine className="w-3.5 h-3.5" />
+                            Descontar {formatMoney(unsettledTotal, "ARS")} en
+                            cuenta
+                          </button>
+                        ) : pItems.length > 0 &&
+                          pItems.every((item) => item.settledTransactionId) ? (
+                          <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                            Mes descontado en cuenta
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExtraPersonId(p.id);
-                      setExtraKind("EXTRA");
-                      setExtraDueDate(`${period}-15`);
-                      setExtraOpen(true);
-                    }}
-                    className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-                  >
-                    + Agregar extra a {p.name}
-                  </button>
-
-                  {p.hasManagedAccount && p.accounts.length > 0 && (
-                    <div>
-                      {unsettledTotal > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => openSettlePersonModal(p)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition cursor-pointer tabular-nums"
-                        >
-                          <ArrowDownToLine className="w-3.5 h-3.5" />
-                          Descontar {formatMoney(unsettledTotal, "ARS")} en cuenta
-                        </button>
-                      ) : pItems.length > 0 ? (
-                        <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
-                          Mes descontado en cuenta
-                        </span>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          {peopleForFilter.length === 0 && (
+            <div className="panel col-span-full">
+              <EmptyState
+                title="Agregá tu primera persona"
+                description="Configurá una persona antes de cargar sus servicios y gastos."
+                action={
+                  <Link href="/config" className="btn-secondary">
+                    Ir a configuración
+                  </Link>
+                }
+              />
+            </div>
+          )}
         </div>
       )}
 
       {/* Modal Agregar Extra del Mes */}
       {extraOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <form
-            onSubmit={handleAddExtra}
-            className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-xl border border-slate-200 space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">
-                Agregar gasto al mes · {formatPeriodLabel(period)}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setExtraOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Persona
-                </label>
-                <select
-                  value={extraPersonId}
-                  onChange={(e) => setExtraPersonId(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
+        <Modal
+          labelledBy="extra-title"
+          onClose={() => {
+            setExtraOpen(false);
+            setActionError(null);
+          }}
+          busy={isPending}
+        >
+          <form onSubmit={handleAddExtra} className="p-4 sm:p-6">
+            <fieldset disabled={isPending} className="min-w-0 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3
+                  id="extra-title"
+                  className="text-base font-semibold text-slate-900"
                 >
-                  {people.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Tipo
-                </label>
-                <select
-                  value={extraKind}
-                  onChange={(e) =>
-                    setExtraKind(e.target.value as "EXTRA" | "SERVICE")
-                  }
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
+                  Agregar gasto · {formatPeriodLabel(period)}
+                </h3>
+                <button
+                  type="button"
+                  aria-label="Cerrar formulario de gasto"
+                  onClick={() => {
+                    setExtraOpen(false);
+                    setActionError(null);
+                  }}
+                  className="icon-button -mr-2"
                 >
-                  <option value="EXTRA">Extra puntual del mes</option>
-                  <option value="SERVICE">Servicio del mes</option>
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            </div>
+              {errorNotice}
 
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Concepto (ej: Impuestos, Remedios, Cuota compra, Nafta...)
-              </label>
-              <input
-                type="text"
-                required
-                autoFocus
-                value={extraConcept}
-                onChange={(e) => setExtraConcept(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Monto
-                </label>
-                <MoneyInput
-                  value={extraAmount}
-                  onChange={setExtraAmount}
-                  currency="ARS"
-                  placeholder="0,00"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="extra-person" className="field-label">
+                    Persona
+                  </label>
+                  <select
+                    id="extra-person"
+                    value={extraPersonId}
+                    onChange={(e) => setExtraPersonId(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
+                  >
+                    {people.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="extra-kind" className="field-label">
+                    Tipo
+                  </label>
+                  <select
+                    id="extra-kind"
+                    value={extraKind}
+                    onChange={(e) =>
+                      setExtraKind(e.target.value as "EXTRA" | "SERVICE")
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
+                  >
+                    <option value="EXTRA">Extra puntual del mes</option>
+                    <option value="SERVICE">Servicio del mes</option>
+                  </select>
+                </div>
               </div>
+
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Fecha / Vencimiento
+                <label htmlFor="extra-concept" className="field-label">
+                  Concepto
                 </label>
                 <input
-                  type="date"
-                  value={extraDueDate}
-                  onChange={(e) => setExtraDueDate(e.target.value)}
+                  id="extra-concept"
+                  placeholder="Ej.: cuota del seguro"
+                  type="text"
+                  required
+                  autoFocus
+                  value={extraConcept}
+                  onChange={(e) => setExtraConcept(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
                 />
               </div>
-            </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-              <ToggleSwitch
-                checked={extraPaid}
-                onChange={setExtraPaid}
-                label="Marcar como pagado"
-              />
-              <ToggleSwitch
-                checked={extraIsArrears}
-                onChange={setExtraIsArrears}
-                activeColor="indigo"
-                label={`Corresponde a ${formatShortPeriodLabel(shiftPeriod(period, -1))}`}
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="extra-amount" className="field-label">
+                    Monto
+                  </label>
+                  <MoneyInput
+                    id="extra-amount"
+                    value={extraAmount}
+                    onChange={setExtraAmount}
+                    currency="ARS"
+                    placeholder="0,00"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="extra-due" className="field-label">
+                    Fecha / Vencimiento
+                  </label>
+                  <input
+                    id="extra-due"
+                    type="date"
+                    value={extraDueDate}
+                    onChange={(e) => setExtraDueDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                  />
+                </div>
+              </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setExtraOpen(false)}
-                className="min-h-11 px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isPending}
-                className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
-              >
-                Guardar
-              </button>
-            </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                <ToggleSwitch
+                  checked={extraPaid}
+                  onChange={setExtraPaid}
+                  label="Marcar como pagado"
+                />
+                <ToggleSwitch
+                  checked={extraIsArrears}
+                  onChange={setExtraIsArrears}
+                  activeColor="indigo"
+                  label={`Corresponde a ${formatShortPeriodLabel(shiftPeriod(period, -1))}`}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExtraOpen(false);
+                    setActionError(null);
+                  }}
+                  className="min-h-11 px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                >
+                  {isPending ? "Guardando…" : "Guardar gasto"}
+                </button>
+              </div>
+            </fieldset>
           </form>
-        </div>
+        </Modal>
       )}
 
       {/* Modal Confirmar Descuento del Resumen Mensual en Subcuenta */}
       {settleModalPerson && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <form
-            onSubmit={handleConfirmSettleSummary}
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">
-                Descontar resumen · {settleModalPerson.name}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setSettleModalPerson(null)}
-                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500">
-              Se generará un movimiento de salida en la cuenta elegida por todos los
-              servicios y extras pendientes de descontar en{" "}
-              <strong>{formatPeriodLabel(period)}</strong>, dejándolos marcados para no
-              duplicarlos.
-            </p>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                ¿De qué cuenta descontar?
-              </label>
-              <select
-                value={settleAccountId}
-                onChange={(e) => setSettleAccountId(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
-              >
-                {settleModalPerson.accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} (Saldo actual: {formatMoney(a.balance, a.currency)})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Fecha del descuento
-                </label>
-                <input
-                  type="date"
-                  value={settleDate}
-                  onChange={(e) => setSettleDate(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
-                />
+        <Modal
+          labelledBy="settle-title"
+          onClose={() => {
+            setSettleModalPerson(null);
+            setActionError(null);
+          }}
+          busy={isPending}
+        >
+          <form onSubmit={handleConfirmSettleSummary} className="p-4 sm:p-6">
+            <fieldset disabled={isPending} className="min-w-0 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3
+                  id="settle-title"
+                  className="text-base font-semibold text-slate-900"
+                >
+                  Descontar resumen · {settleModalPerson.name}
+                </h3>
+                <button
+                  type="button"
+                  aria-label="Cerrar descuento de resumen"
+                  onClick={() => {
+                    setSettleModalPerson(null);
+                    setActionError(null);
+                  }}
+                  className="icon-button -mr-2"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Concepto en cuenta
-                </label>
-                <input
-                  type="text"
-                  value={settleConcept}
-                  onChange={(e) => setSettleConcept(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
-                />
-              </div>
-            </div>
+              {errorNotice}
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setSettleModalPerson(null)}
-                className="min-h-11 px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isPending}
-                className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
-              >
-                Confirmar descuento
-              </button>
-            </div>
+              <p className="text-xs text-slate-500">
+                Se generará un movimiento de salida en la cuenta elegida por
+                todos los servicios y extras pendientes de descontar en{" "}
+                <strong>{formatPeriodLabel(period)}</strong>, dejándolos
+                marcados para no duplicarlos.
+              </p>
+
+              <div>
+                <label htmlFor="settle-account" className="field-label">
+                  ¿De qué cuenta descontar?
+                </label>
+                <select
+                  id="settle-account"
+                  value={settleAccountId}
+                  onChange={(e) => setSettleAccountId(Number(e.target.value))}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
+                >
+                  {settleModalPerson.accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} (Saldo actual:{" "}
+                      {formatMoney(a.balance, a.currency)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="settle-date" className="field-label">
+                    Fecha del descuento
+                  </label>
+                  <input
+                    id="settle-date"
+                    type="date"
+                    value={settleDate}
+                    onChange={(e) => setSettleDate(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="settle-concept" className="field-label">
+                    Concepto en cuenta
+                  </label>
+                  <input
+                    id="settle-concept"
+                    type="text"
+                    value={settleConcept}
+                    onChange={(e) => setSettleConcept(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettleModalPerson(null);
+                    setActionError(null);
+                  }}
+                  className="min-h-11 px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                >
+                  {isPending ? "Descontando…" : "Confirmar descuento"}
+                </button>
+              </div>
+            </fieldset>
           </form>
-        </div>
+        </Modal>
       )}
     </div>
   );

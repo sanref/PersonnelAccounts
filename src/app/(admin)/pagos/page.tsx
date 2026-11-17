@@ -23,6 +23,7 @@ export default async function PagosPage({
 
   return (
     <MonthlyPaymentsClient
+      key={`${period}-${sp.persona ?? "ALL"}-${sp.tab ?? "grilla"}`}
       period={period}
       people={data.people}
       items={data.items}

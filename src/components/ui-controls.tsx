@@ -12,28 +12,31 @@ export function ToggleSwitch({
   disabled,
   label,
   activeColor = "emerald",
+  ariaLabel,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
   label?: string;
   activeColor?: "emerald" | "indigo" | "slate";
+  ariaLabel?: string;
 }) {
   const bgActive =
     activeColor === "indigo"
       ? "bg-indigo-600"
       : activeColor === "slate"
-      ? "bg-slate-900"
-      : "bg-emerald-600";
+        ? "bg-slate-900"
+        : "bg-emerald-600";
 
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel ?? label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`inline-flex items-center gap-2 min-h-9 py-1.5 select-none ${
+      className={`inline-flex items-center gap-2 min-h-11 rounded-lg py-1.5 select-none ${
         disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
       }`}
     >
@@ -66,6 +69,8 @@ export function MoneyInput({
   required,
   autoFocus,
   className = "",
+  id,
+  disabled,
 }: {
   value: string;
   onChange: (raw: string) => void;
@@ -74,6 +79,8 @@ export function MoneyInput({
   required?: boolean;
   autoFocus?: boolean;
   className?: string;
+  id?: string;
+  disabled?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
   const prefix = currency === "USD" ? "US$" : "$";
@@ -82,8 +89,8 @@ export function MoneyInput({
   const displayValue = focused
     ? value
     : parsed !== null
-    ? formatNumberAR(parsed, 2)
-    : value;
+      ? formatNumberAR(parsed, 2)
+      : value;
 
   return (
     <div className={`relative flex items-center ${className}`}>
@@ -91,6 +98,8 @@ export function MoneyInput({
         {prefix}
       </span>
       <input
+        id={id}
+        disabled={disabled}
         type="text"
         inputMode="decimal"
         required={required}
@@ -125,14 +134,19 @@ export function InlineMoneyCell({
   amount,
   currency = "ARS",
   onSave,
+  disabled,
+  label = "Importe",
 }: {
   amount: string | number | null;
   currency?: string;
   onSave: (nextAmount: number | null) => void;
+  disabled?: boolean;
+  label?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const committed = useRef(false);
 
   useEffect(() => {
     if (editing) {
@@ -142,17 +156,29 @@ export function InlineMoneyCell({
   }, [editing]);
 
   function startEdit() {
-    const current = amount !== null && amount !== undefined && amount !== "" ? Number(amount) : null;
-    setDraft(current !== null && Number.isFinite(current) ? String(current).replace(".", ",") : "");
+    committed.current = false;
+    const current =
+      amount !== null && amount !== undefined && amount !== ""
+        ? Number(amount)
+        : null;
+    setDraft(
+      current !== null && Number.isFinite(current)
+        ? String(current).replace(".", ",")
+        : "",
+    );
     setEditing(true);
   }
 
   function commit() {
+    if (committed.current) return;
+    committed.current = true;
     setEditing(false);
     const trimmed = draft.trim();
     const nextNum = trimmed === "" ? null : parseMoneyInput(trimmed);
     const prevNum =
-      amount !== null && amount !== undefined && amount !== "" ? Number(amount) : null;
+      amount !== null && amount !== undefined && amount !== ""
+        ? Number(amount)
+        : null;
 
     if (nextNum === prevNum) return;
     onSave(nextNum);
@@ -169,6 +195,7 @@ export function InlineMoneyCell({
             ref={inputRef}
             type="text"
             inputMode="decimal"
+            aria-label={label}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
@@ -177,6 +204,7 @@ export function InlineMoneyCell({
                 e.preventDefault();
                 commit();
               } else if (e.key === "Escape") {
+                committed.current = true;
                 setEditing(false);
               }
             }}
@@ -193,9 +221,11 @@ export function InlineMoneyCell({
   return (
     <button
       type="button"
+      disabled={disabled}
+      aria-label={`${label}: ${hasAmount ? formatMoney(amount, currency) : "sin importe"}. Editar`}
       onClick={startEdit}
       title="Clic para editar importe"
-      className={`px-2.5 py-1 rounded-lg text-right tabular-nums transition cursor-pointer ${
+      className={`min-h-11 px-2.5 py-1 rounded-lg text-right tabular-nums transition cursor-pointer ${
         hasAmount
           ? "font-semibold text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-200"
           : "text-xs text-slate-400 hover:text-slate-700 border border-dashed border-slate-300 hover:border-slate-400"

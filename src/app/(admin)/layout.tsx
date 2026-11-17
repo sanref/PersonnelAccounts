@@ -19,13 +19,18 @@ export default async function AdminLayout({
     .map((p) => ({ slug: p.slug, name: p.name }));
 
   return (
-    <div className="min-h-screen flex flex-col pb-28 md:pb-8">
+    <div className="min-h-screen flex flex-col pb-32 lg:pb-8 lg:pl-60">
       <NavShell
         peopleLinks={managedLinks}
         notificationAlerts={notifState.alerts}
         notificationSettings={notifState.settings}
       />
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">{children}</main>
+      <main
+        id="main-content"
+        className="flex-1 min-w-0 max-w-7xl w-full mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
+      >
+        {children}
+      </main>
     </div>
   );
 }
