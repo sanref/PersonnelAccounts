@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, lt, ne } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db, people, accounts, transactions, services, monthlyItems } from "@/db";
 
 export interface AccountSummary {
@@ -10,6 +11,7 @@ export interface AccountSummary {
   balance: number;
   txCount: number;
   isActive: boolean;
+  isDefault: boolean;
 }
 
 export interface PersonCardSummary {
@@ -39,7 +41,7 @@ export async function getPeopleWithBalances(): Promise<PersonCardSummary[]> {
     orderBy: [asc(people.sortOrder), asc(people.id)],
     with: {
       accounts: {
-        orderBy: [asc(accounts.sortOrder), asc(accounts.id)],
+        orderBy: [desc(accounts.isDefault), asc(accounts.sortOrder), asc(accounts.id)],
         with: {
           transactions: true,
         },
@@ -62,6 +64,8 @@ export async function getPeopleWithBalances(): Promise<PersonCardSummary[]> {
         balance: Math.round(bal * 100) / 100,
         txCount: a.transactions.length,
         isActive: a.isActive,
+        // Sin ninguna marcada, la primera (por orden) hace de predeterminada.
+        isDefault: a.isDefault || (!p.accounts.some((x) => x.isDefault) && a.id === p.accounts[0]?.id),
       };
     });
 
@@ -106,6 +110,7 @@ export interface LedgerRow {
   refCurrency: string | null;
   transferGroupId: string | null;
   settlementPeriod: string | null;
+  affectsDebt: boolean;
 }
 
 export async function getPersonDetailBySlug(slug: string) {
@@ -113,7 +118,7 @@ export async function getPersonDetailBySlug(slug: string) {
     where: eq(people.slug, slug),
     with: {
       accounts: {
-        orderBy: [asc(accounts.sortOrder), asc(accounts.id)],
+        orderBy: [desc(accounts.isDefault), asc(accounts.sortOrder), asc(accounts.id)],
         with: {
           transactions: {
             orderBy: [asc(transactions.date), asc(transactions.sortOrder), asc(transactions.id)],
@@ -137,7 +142,7 @@ export async function getPersonDetailByShareToken(token: string) {
     where: eq(people.shareToken, token),
     with: {
       accounts: {
-        orderBy: [asc(accounts.sortOrder), asc(accounts.id)],
+        orderBy: [desc(accounts.isDefault), asc(accounts.sortOrder), asc(accounts.id)],
         with: {
           transactions: {
             orderBy: [asc(transactions.date), asc(transactions.sortOrder), asc(transactions.id)],
@@ -196,6 +201,7 @@ function buildPersonDetail(
         refCurrency: tx.refCurrency,
         transferGroupId: tx.transferGroupId,
         settlementPeriod: tx.settlementPeriod,
+        affectsDebt: tx.affectsDebt,
       });
     }
     ledgerByAccount.set(acc.id, rows);
@@ -208,6 +214,9 @@ function buildPersonDetail(
       balance: running,
       txCount: acc.transactions.length,
       isActive: acc.isActive,
+      isDefault:
+        acc.isDefault ||
+        (!person.accounts.some((x) => x.isDefault) && acc.id === person.accounts[0]?.id),
     });
   }
 
@@ -251,6 +260,7 @@ function buildPersonDetail(
       refCurrency: tx.refCurrency,
       transferGroupId: tx.transferGroupId,
       settlementPeriod: tx.settlementPeriod,
+      affectsDebt: tx.affectsDebt,
     };
   });
 
@@ -378,4 +388,125 @@ export async function getMonthlyPaymentsData(period: string) {
     missingServicesCount,
     availablePeriods: existingPeriodsRows.map((r) => r.period),
   };
+}
+
+// ==========================================
+// DEUDAS ENTRE PERSONAS
+// ==========================================
+
+export interface DebtPersonRef {
+  id: number;
+  name: string;
+}
+
+export interface DebtMovement {
+  id: number;
+  transferGroupId: string;
+  date: string;
+  amount: number;
+  concept: string;
+  currency: string;
+  /** Quien pone la plata (acreedor de este movimiento). */
+  fromPerson: DebtPersonRef;
+  /** Quien la recibe (deudor de este movimiento). */
+  toPerson: DebtPersonRef;
+}
+
+export interface DebtBalance {
+  debtor: DebtPersonRef;
+  creditor: DebtPersonRef;
+  currency: string;
+  amount: number;
+}
+
+/**
+ * Movimientos que afectan deuda: cada TRANSFER_OUT marcado con `affectsDebt` desde una
+ * cuenta de X hacia una cuenta de Y (Y ≠ X) significa que Y le debe a X ese monto.
+ * Las devoluciones son transferencias marcadas en sentido inverso.
+ */
+export async function getDebtMovements(personId?: number): Promise<DebtMovement[]> {
+  const outTx = alias(transactions, "debt_out_tx");
+  const inTx = alias(transactions, "debt_in_tx");
+  const fromAcc = alias(accounts, "debt_from_acc");
+  const toAcc = alias(accounts, "debt_to_acc");
+  const fromPerson = alias(people, "debt_from_person");
+  const toPerson = alias(people, "debt_to_person");
+
+  const rows = await db
+    .select({
+      id: outTx.id,
+      transferGroupId: outTx.transferGroupId,
+      date: outTx.date,
+      amount: outTx.amount,
+      concept: outTx.concept,
+      currency: fromAcc.currency,
+      fromPersonId: fromPerson.id,
+      fromPersonName: fromPerson.name,
+      toPersonId: toPerson.id,
+      toPersonName: toPerson.name,
+    })
+    .from(outTx)
+    .innerJoin(
+      inTx,
+      and(eq(inTx.transferGroupId, outTx.transferGroupId), eq(inTx.type, "TRANSFER_IN"))
+    )
+    .innerJoin(fromAcc, eq(fromAcc.id, outTx.accountId))
+    .innerJoin(toAcc, eq(toAcc.id, inTx.accountId))
+    .innerJoin(fromPerson, eq(fromPerson.id, fromAcc.personId))
+    .innerJoin(toPerson, eq(toPerson.id, toAcc.personId))
+    .where(
+      and(
+        eq(outTx.type, "TRANSFER_OUT"),
+        eq(outTx.affectsDebt, true),
+        ne(fromAcc.personId, toAcc.personId)
+      )
+    )
+    .orderBy(desc(outTx.date), desc(outTx.id));
+
+  return rows
+    .filter(
+      (r) => personId === undefined || r.fromPersonId === personId || r.toPersonId === personId
+    )
+    .map((r) => ({
+      id: r.id,
+      transferGroupId: r.transferGroupId ?? "",
+      date: r.date,
+      amount: Number(r.amount),
+      concept: r.concept,
+      currency: r.currency,
+      fromPerson: { id: r.fromPersonId, name: r.fromPersonName },
+      toPerson: { id: r.toPersonId, name: r.toPersonName },
+    }));
+}
+
+/** Saldo neto de deuda por par de personas y moneda (solo pares con saldo ≠ 0). */
+export async function getDebtBalances(personId?: number): Promise<DebtBalance[]> {
+  const movements = await getDebtMovements(personId);
+  const map = new Map<string, { a: DebtPersonRef; b: DebtPersonRef; currency: string; bOwesA: number }>();
+
+  for (const mv of movements) {
+    // Clave canónica: persona de menor id = "a"
+    const [a, b] =
+      mv.fromPerson.id < mv.toPerson.id ? [mv.fromPerson, mv.toPerson] : [mv.toPerson, mv.fromPerson];
+    const key = `${a.id}-${b.id}-${mv.currency}`;
+    let entry = map.get(key);
+    if (!entry) {
+      entry = { a, b, currency: mv.currency, bOwesA: 0 };
+      map.set(key, entry);
+    }
+    // from → to: "to" le debe a "from"
+    const delta = mv.fromPerson.id === a.id ? mv.amount : -mv.amount;
+    entry.bOwesA = Math.round((entry.bOwesA + delta) * 100) / 100;
+  }
+
+  const balances: DebtBalance[] = [];
+  for (const e of map.values()) {
+    if (Math.abs(e.bOwesA) < 0.005) continue;
+    balances.push(
+      e.bOwesA > 0
+        ? { debtor: e.b, creditor: e.a, currency: e.currency, amount: e.bOwesA }
+        : { debtor: e.a, creditor: e.b, currency: e.currency, amount: -e.bOwesA }
+    );
+  }
+  return balances.sort((x, y) => y.amount - x.amount);
 }

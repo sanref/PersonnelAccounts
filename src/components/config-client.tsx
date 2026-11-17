@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import {
   createAccountAction,
   updateAccountAction,
   deleteAccountAction,
+  setDefaultAccountAction,
   updateShareSettingsAction,
   createServiceAction,
   toggleServiceActiveAction,
@@ -1105,6 +1107,12 @@ export function ConfigClient({
                             <span className="font-semibold text-slate-900">
                               {acc.name}
                             </span>{" "}
+                            {acc.isDefault && (
+                              <span className="mr-1 inline-flex items-center gap-1 rounded bg-indigo-50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-indigo-800">
+                                <Star className="h-3 w-3" />
+                                Predeterminada
+                              </span>
+                            )}
                             <span className="text-slate-600">
                               · Inicial:{" "}
                               {formatMoney(acc.initialBalance, acc.currency)} ·
@@ -1115,6 +1123,23 @@ export function ConfigClient({
                             </strong>
                           </div>
                           <div className="flex items-center gap-1">
+                            {!acc.isDefault && acc.isActive && (
+                              <button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() =>
+                                  startTransition(async () => {
+                                    await setDefaultAccountAction(acc.id);
+                                    router.refresh();
+                                  })
+                                }
+                                title="Usar como cuenta predeterminada"
+                                aria-label={`Usar ${acc.name} como cuenta predeterminada`}
+                                className="p-1.5 rounded hover:bg-indigo-50 text-slate-500 hover:text-indigo-700 cursor-pointer"
+                              >
+                                <Star className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => startEditAcc(acc)}

@@ -75,6 +75,7 @@ export async function GET() {
           Monto_Referencia: tx.refAmount ? Number(tx.refAmount) : "",
           Moneda_Referencia: tx.refCurrency ?? "",
           Notas: tx.notes ?? "",
+          Afecta_Deuda: tx.affectsDebt ? "Sí" : "No",
         });
       }
     }

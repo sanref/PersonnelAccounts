@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { Wallet } from "lucide-react";
-import { getPersonDetailByShareToken } from "@/lib/queries";
+import { getDebtBalances, getPersonDetailByShareToken } from "@/lib/queries";
 import { VIEWER_PIN_COOKIE_PREFIX, verifyPinToken } from "@/lib/auth";
 import { formatMoney, formatPeriodLabel } from "@/lib/format";
 import { FamilyPinGate } from "@/components/family-pin-gate";
@@ -34,6 +34,7 @@ export default async function FamilySharedViewPage({
   }
 
   const isNegative = totalBalance < -0.004;
+  const debtBalances = await getDebtBalances(person.id);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
@@ -90,6 +91,38 @@ export default async function FamilySharedViewPage({
             </div>
           )}
         </section>
+
+        {debtBalances.length > 0 && (
+          <section className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 space-y-3 tabular-nums">
+            <h2 className="text-base font-bold text-slate-900">
+              Deudas con otras personas
+            </h2>
+            <div className="divide-y divide-slate-200">
+              {debtBalances.map((b) => (
+                <div
+                  key={`${b.debtor.id}-${b.creditor.id}-${b.currency}`}
+                  className="flex flex-wrap items-center justify-between gap-2 py-2.5"
+                >
+                  <span className="text-sm text-slate-700">
+                    {b.debtor.id === person.id
+                      ? `Le debés a ${b.creditor.name}`
+                      : `${b.debtor.name} te debe`}
+                  </span>
+                  <span
+                    className={`text-base font-bold ${
+                      b.debtor.id === person.id ? "text-rose-600" : "text-emerald-700"
+                    }`}
+                  >
+                    {formatMoney(b.amount, b.currency)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-600">
+              Préstamos usados para pagar gastos, menos las devoluciones registradas.
+            </p>
+          </section>
+        )}
 
         {monthlySummaries.length > 0 && (
           <section className="space-y-3 tabular-nums">

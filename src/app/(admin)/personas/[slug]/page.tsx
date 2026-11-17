@@ -1,5 +1,9 @@
 import { notFound } from "next/navigation";
-import { getPersonDetailBySlug } from "@/lib/queries";
+import {
+  getDebtBalances,
+  getPeopleWithBalances,
+  getPersonDetailBySlug,
+} from "@/lib/queries";
 import { PersonLedgerClient } from "@/components/person-ledger-client";
 
 export default async function PersonDetailPage({
@@ -8,11 +12,25 @@ export default async function PersonDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const detail = await getPersonDetailBySlug(slug);
+  const [detail, allPeople, debtBalances] = await Promise.all([
+    getPersonDetailBySlug(slug),
+    getPeopleWithBalances(),
+    getDebtBalances(),
+  ]);
 
   if (!detail) {
     notFound();
   }
 
-  return <PersonLedgerClient detail={detail} />;
+  const personId = detail.person.id;
+
+  return (
+    <PersonLedgerClient
+      detail={detail}
+      allPeople={allPeople}
+      debtBalances={debtBalances.filter(
+        (b) => b.debtor.id === personId || b.creditor.id === personId,
+      )}
+    />
+  );
 }

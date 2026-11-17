@@ -15,7 +15,12 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import type { AccountSummary, LedgerRow } from "@/lib/queries";
+import type {
+  AccountSummary,
+  DebtBalance,
+  LedgerRow,
+  PersonCardSummary,
+} from "@/lib/queries";
 import {
   createTransactionAction,
   updateTransactionAction,
@@ -33,6 +38,7 @@ import {
 } from "@/lib/format";
 import { MoneyInput, ToggleSwitch } from "@/components/ui-controls";
 import { Modal } from "@/components/modal";
+import { DebtsPanel } from "@/components/debts-panel";
 
 interface MonthlySummaryGroup {
   period: string;
@@ -71,11 +77,27 @@ export interface PersonDetailProps {
 
 type LedgerSortField = "date" | "concept" | "amount";
 
-export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
+export function PersonLedgerClient({
+  detail,
+  allPeople = [],
+  debtBalances = [],
+}: {
+  detail: PersonDetailProps;
+  /** Todas las personas con cuentas: destinos de transferencias entre personas. */
+  allPeople?: PersonCardSummary[];
+  debtBalances?: DebtBalance[];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const { person, accounts } = detail;
+  // Cuentas activas de otras personas para transferir (préstamos / devoluciones)
+  const otherPeopleGroups = allPeople
+    .filter((p) => p.id !== person.id)
+    .map((p) => ({ person: p, accounts: p.accounts.filter((a) => a.isActive) }))
+    .filter((g) => g.accounts.length > 0);
+  const canTransfer =
+    accounts.length > 1 || (accounts.length > 0 && otherPeopleGroups.length > 0);
   const [selectedAccountId, setSelectedAccountId] = useState<number | "ALL">(
     "ALL",
   );
@@ -109,6 +131,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
   const [txAmount, setTxAmount] = useState<string>("");
   const [txConcept, setTxConcept] = useState<string>("");
   const [txNotes, setTxNotes] = useState<string>("");
+  const [txAffectsDebt, setTxAffectsDebt] = useState(false);
   const [txRefAmount, setTxRefAmount] = useState<string>("");
   const [txRefCurrency, setTxRefCurrency] = useState<string>(
     person.defaultCurrency === "USD" ? "ARS" : "USD",
@@ -240,7 +263,10 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
         a.id !==
         (selectedAccountId !== "ALL" ? selectedAccountId : accounts[0]?.id),
     );
-    setTxToAccountId(otherAcc?.id ?? accounts[0]?.id ?? 0);
+    setTxToAccountId(
+      otherAcc?.id ?? otherPeopleGroups[0]?.accounts[0]?.id ?? accounts[0]?.id ?? 0,
+    );
+    setTxAffectsDebt(false);
     setTxDate(todayISO());
     setTxAmount("");
     setTxConcept("");
@@ -267,6 +293,13 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
     setFormError(null);
     setTxModalOpen(true);
   }
+
+  const transferTargetPerson =
+    txType === "TRANSFER"
+      ? otherPeopleGroups.find((g) => g.accounts.some((a) => a.id === txToAccountId))
+          ?.person
+      : undefined;
+  const transferToOtherPerson = Boolean(transferTargetPerson);
 
   function handleSaveTx(e: React.FormEvent) {
     e.preventDefault();
@@ -303,6 +336,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
             notes: txNotes,
             refAmount: parsedRef,
             refCurrency: txRefCurrency,
+            affectsDebt: transferToOtherPerson ? txAffectsDebt : undefined,
           });
         }
         setTxModalOpen(false);
@@ -314,7 +348,9 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
   }
 
   function handleDeleteTx(row: LedgerRow) {
-    const msg = row.transferGroupId
+    const msg = row.affectsDebt || (row.transferGroupId && row.type === "OUT")
+      ? "¿Eliminar este movimiento junto con el préstamo/pago asociado? Se borra en todas las cuentas involucradas y se ajusta la deuda."
+      : row.transferGroupId
       ? "¿Eliminar esta transferencia (ambas cuentas)?"
       : `¿Eliminar "${row.concept}" por ${formatMoney(row.amount, row.currency)}?`;
     if (!confirm(msg)) return;
@@ -407,7 +443,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
             <Plus className="w-4 h-4" />
             Gasto / Pago
           </button>
-          {accounts.length > 1 && (
+          {canTransfer && (
             <button
               type="button"
               onClick={() => openNewTx("TRANSFER")}
@@ -427,6 +463,14 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
           </button>
         </div>
       </div>
+
+      {debtBalances.length > 0 && (
+        <DebtsPanel
+          balances={debtBalances}
+          people={allPeople}
+          personId={person.id}
+        />
+      )}
 
       {/* Selector de Subcuentas */}
       <div className="flex flex-wrap items-center gap-2 tabular-nums">
@@ -624,6 +668,11 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                       </p>
                       <p className="mt-1 text-xs text-slate-600">
                         {row.accountName}
+                        {row.affectsDebt && (
+                          <span className="ml-2 inline-block rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-800">
+                            Préstamo
+                          </span>
+                        )}
                       </p>
                     </div>
                     <div className="text-right tabular-nums">
@@ -874,6 +923,11 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                                 Rendimiento
                               </span>
                             )}
+                            {row.affectsDebt && (
+                              <span className="text-[0.6875rem] text-indigo-800 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                Préstamo
+                              </span>
+                            )}
                             {row.notes && (
                               <span className="text-xs text-slate-600 truncate max-w-xs">
                                 {row.notes}
@@ -1023,7 +1077,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                     ["IN", "Ingreso"],
                     ["OUT", "Gasto / Salida"],
                     ["YIELD", "Rendimiento"],
-                    ...(accounts.length > 1 && !editingTx
+                    ...(canTransfer && !editingTx
                       ? ([["TRANSFER", "Transferir"]] as const)
                       : []),
                   ] as const
@@ -1043,7 +1097,7 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                 ))}
               </div>
 
-              {accounts.length > 1 && (
+              {(accounts.length > 1 || txType === "TRANSFER") && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">
@@ -1073,14 +1127,44 @@ export function PersonLedgerClient({ detail }: { detail: PersonDetailProps }) {
                         }
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
                       >
-                        {accounts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name} ({a.currency})
-                          </option>
+                        <optgroup label={`Cuentas de ${person.name}`}>
+                          {accounts.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name} ({a.currency})
+                            </option>
+                          ))}
+                        </optgroup>
+                        {otherPeopleGroups.map((g) => (
+                          <optgroup
+                            key={g.person.id}
+                            label={`Cuentas de ${g.person.name}`}
+                          >
+                            {g.accounts.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {g.person.name} · {a.name} ({a.currency})
+                              </option>
+                            ))}
+                          </optgroup>
                         ))}
                       </select>
                     </div>
                   )}
+                </div>
+              )}
+
+              {transferTargetPerson && (
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <ToggleSwitch
+                    checked={txAffectsDebt}
+                    onChange={setTxAffectsDebt}
+                    activeColor="indigo"
+                    label="Es préstamo / devolución (cuenta para la deuda)"
+                  />
+                  <p className="text-xs text-slate-600">
+                    {txAffectsDebt
+                      ? `${transferTargetPerson.name} le va a deber este monto a ${person.name} (o se descuenta de lo que ${person.name} le debe).`
+                      : "Sin marcar, la transferencia no genera deuda (por ejemplo, un regalo o un reacomodo)."}
+                  </p>
                 </div>
               )}
 

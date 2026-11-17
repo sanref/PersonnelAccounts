@@ -40,6 +40,9 @@ export const accounts = pgTable(
       .notNull()
       .default("0"),
     isActive: boolean("is_active").notNull().default(true),
+    // Cuenta predeterminada de la persona: aparece primera y preseleccionada al operar.
+    // Una sola por persona (lo garantiza setDefaultAccountAction).
+    isDefault: boolean("is_default").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -63,6 +66,9 @@ export const transactions = pgTable(
     refCurrency: text("ref_currency"), // 'ARS' | 'USD'
     transferGroupId: text("transfer_group_id"), // pairs TRANSFER_OUT and TRANSFER_IN
     settlementPeriod: text("settlement_period"), // e.g. '2026-10' when created from monthly summary settlement
+    // true en transferencias entre personas que generan/saldan deuda (préstamo o devolución).
+    // Regla: TRANSFER_OUT marcado de X hacia Y ⇒ Y le debe a X el monto.
+    affectsDebt: boolean("affects_debt").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0), // preserves exact Excel row order on same-day entries
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },

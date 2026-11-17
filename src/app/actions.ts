@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import {
   db,
   people,
@@ -23,7 +23,7 @@ import {
   signAdminToken,
   signPinToken,
 } from "@/lib/auth";
-import { formatPeriodLabel, shiftPeriod, todayISO } from "@/lib/format";
+import { formatMoney, formatPeriodLabel, shiftPeriod, todayISO } from "@/lib/format";
 import {
   dispatchDueNotifications,
   getOrCreateNotificationSettings,
@@ -165,6 +165,8 @@ export async function createTransactionAction(input: {
   notes?: string;
   refAmount?: number | null;
   refCurrency?: string | null;
+  /** Solo TRANSFER entre personas distintas: préstamo o devolución que cuenta para la deuda. */
+  affectsDebt?: boolean;
 }) {
   await requireAdmin();
 
@@ -180,10 +182,29 @@ export async function createTransactionAction(input: {
       throw new Error("Seleccioná una cuenta destino distinta a la de origen");
     }
     const [fromAcc, toAcc] = await Promise.all([
-      db.query.accounts.findFirst({ where: eq(accounts.id, input.accountId) }),
-      db.query.accounts.findFirst({ where: eq(accounts.id, input.toAccountId) }),
+      db.query.accounts.findFirst({
+        where: eq(accounts.id, input.accountId),
+        with: { person: true },
+      }),
+      db.query.accounts.findFirst({
+        where: eq(accounts.id, input.toAccountId),
+        with: { person: true },
+      }),
     ]);
     if (!fromAcc || !toAcc) throw new Error("Cuentas no encontradas");
+
+    const crossPerson = fromAcc.personId !== toAcc.personId;
+    const affectsDebt = Boolean(input.affectsDebt);
+    if (affectsDebt) {
+      if (!crossPerson) {
+        throw new Error("Solo una transferencia entre personas distintas puede contar como deuda");
+      }
+      if (fromAcc.currency !== toAcc.currency) {
+        throw new Error("Un préstamo o devolución tiene que ser entre cuentas de la misma moneda");
+      }
+    }
+    const toLabel = crossPerson ? `${toAcc.person.name} · ${toAcc.name}` : toAcc.name;
+    const fromLabel = crossPerson ? `${fromAcc.person.name} · ${fromAcc.name}` : fromAcc.name;
 
     const groupId = crypto.randomUUID();
     await db.insert(transactions).values([
@@ -192,9 +213,10 @@ export async function createTransactionAction(input: {
         date: txDate,
         type: "TRANSFER_OUT",
         amount: amt.toFixed(2),
-        concept: `${concept} (hacia ${toAcc.name})`,
+        concept: `${concept} (hacia ${toLabel})`,
         notes: input.notes?.trim() || null,
         transferGroupId: groupId,
+        affectsDebt,
         sortOrder: 9000,
       },
       {
@@ -202,9 +224,10 @@ export async function createTransactionAction(input: {
         date: txDate,
         type: "TRANSFER_IN",
         amount: amt.toFixed(2),
-        concept: `${concept} (desde ${fromAcc.name})`,
+        concept: `${concept} (desde ${fromLabel})`,
         notes: input.notes?.trim() || null,
         transferGroupId: groupId,
+        affectsDebt,
         sortOrder: 9001,
       },
     ]);
@@ -378,11 +401,17 @@ export async function createAccountAction(input: {
   const name = input.name.trim();
   if (!name) throw new Error("Nombre de cuenta requerido");
 
+  const existing = await db.query.accounts.findFirst({
+    where: eq(accounts.personId, input.personId),
+  });
+
   await db.insert(accounts).values({
     personId: input.personId,
     name,
     currency: input.currency,
     initialBalance: Number(input.initialBalance ?? 0).toFixed(2),
+    // La primera cuenta de una persona queda como predeterminada.
+    isDefault: !existing,
     sortOrder: 10,
   });
 
@@ -405,9 +434,35 @@ export async function updateAccountAction(input: {
   revalidateAll();
 }
 
+/** Marca una cuenta como predeterminada de su persona (y desmarca las demás). */
+export async function setDefaultAccountAction(id: number) {
+  await requireAdmin();
+  const acc = await db.query.accounts.findFirst({ where: eq(accounts.id, id) });
+  if (!acc) throw new Error("Cuenta no encontrada");
+  if (!acc.isActive) throw new Error("No se puede predeterminar una cuenta inactiva");
+
+  await db.batch([
+    db.update(accounts).set({ isDefault: false }).where(eq(accounts.personId, acc.personId)),
+    db.update(accounts).set({ isDefault: true }).where(eq(accounts.id, id)),
+  ]);
+  revalidateAll();
+}
+
 export async function deleteAccountAction(id: number) {
   await requireAdmin();
+  const acc = await db.query.accounts.findFirst({ where: eq(accounts.id, id) });
   await db.delete(accounts).where(eq(accounts.id, id));
+
+  // Si se borró la predeterminada, la primera cuenta restante pasa a serlo.
+  if (acc?.isDefault) {
+    const next = await db.query.accounts.findFirst({
+      where: and(eq(accounts.personId, acc.personId), eq(accounts.isActive, true)),
+      orderBy: [asc(accounts.sortOrder), asc(accounts.id)],
+    });
+    if (next) {
+      await db.update(accounts).set({ isDefault: true }).where(eq(accounts.id, next.id));
+    }
+  }
   revalidateAll();
 }
 
@@ -774,14 +829,137 @@ export async function deleteMonthlyItemAction(id: number) {
   revalidateAll();
 }
 
+// ==========================================
+// DESCONTAR ÍTEMS MENSUALES EN CUENTA (con préstamo opcional de otra persona)
+// ==========================================
+
+/** Los ítems mensuales están en ARS: solo se descuentan de cuentas activas en pesos. */
+async function getSettleAccount(accountId: number) {
+  const acc = await db.query.accounts.findFirst({
+    where: eq(accounts.id, accountId),
+    with: { person: true },
+  });
+  if (!acc) throw new Error("Cuenta no encontrada");
+  if (!acc.isActive) throw new Error(`La cuenta ${acc.name} está inactiva`);
+  if (acc.currency !== "ARS") {
+    throw new Error(`Solo se puede descontar en cuentas en pesos (${acc.name} es ${acc.currency})`);
+  }
+  return acc;
+}
+
 /**
- * Descuenta UN ítem puntual directamente en la cuenta elegida de la persona
- * (ideal para pagos individuales de Mer como Zurich / San Cristóbal).
+ * Valida la cuenta del dueño (donde queda el egreso) y, si viene, la cuenta de la persona
+ * que presta la plata. Devuelve ambas.
+ */
+async function resolveSettleAccounts(
+  ownerPersonId: number,
+  accountId: number,
+  lenderAccountId?: number | null
+) {
+  const ownerAcc = await getSettleAccount(accountId);
+  if (ownerAcc.personId !== ownerPersonId) {
+    throw new Error("El gasto tiene que registrarse en una cuenta del dueño del ítem");
+  }
+  if (!lenderAccountId) return { ownerAcc, lenderAcc: null };
+
+  const lenderAcc = await getSettleAccount(lenderAccountId);
+  if (lenderAcc.personId === ownerPersonId) {
+    throw new Error("La cuenta que presta tiene que ser de otra persona");
+  }
+  return { ownerAcc, lenderAcc };
+}
+
+type SettleAccount = Awaited<ReturnType<typeof getSettleAccount>>;
+
+/**
+ * Crea el egreso en la cuenta del dueño. Si hay prestador, además registra la transferencia
+ * prestador → dueño marcada como deuda. Las tres filas comparten `transferGroupId` para que
+ * borrar cualquiera deshaga el préstamo y el pago juntos.
+ */
+async function createSettlementTransactions(opts: {
+  ownerAcc: SettleAccount;
+  lenderAcc: SettleAccount | null;
+  date: string;
+  amount: number;
+  concept: string;
+  notes: string | null;
+  settlementPeriod?: string;
+}) {
+  const amount = opts.amount.toFixed(2);
+  const outValues = {
+    accountId: opts.ownerAcc.id,
+    date: opts.date,
+    type: "OUT",
+    amount,
+    concept: opts.concept,
+    notes: opts.notes,
+    settlementPeriod: opts.settlementPeriod ?? null,
+    sortOrder: 9002,
+  };
+
+  if (!opts.lenderAcc) {
+    const [created] = await db
+      .insert(transactions)
+      .values({ ...outValues, sortOrder: 9000 })
+      .returning();
+    return created;
+  }
+
+  const lender = opts.lenderAcc;
+  const owner = opts.ownerAcc;
+  const groupId = crypto.randomUUID();
+  const [, outRows] = await db.batch([
+    db.insert(transactions).values([
+      {
+        accountId: lender.id,
+        date: opts.date,
+        type: "TRANSFER_OUT",
+        amount,
+        concept: `Préstamo a ${owner.person.name}: ${opts.concept} (hacia ${owner.person.name} · ${owner.name})`,
+        notes: opts.notes,
+        transferGroupId: groupId,
+        affectsDebt: true,
+        sortOrder: 9000,
+      },
+      {
+        accountId: owner.id,
+        date: opts.date,
+        type: "TRANSFER_IN",
+        amount,
+        concept: `Préstamo de ${lender.person.name}: ${opts.concept} (desde ${lender.person.name} · ${lender.name})`,
+        notes: opts.notes,
+        transferGroupId: groupId,
+        affectsDebt: true,
+        sortOrder: 9001,
+      },
+    ]),
+    db
+      .insert(transactions)
+      .values({ ...outValues, transferGroupId: groupId })
+      .returning(),
+  ]);
+  return outRows[0];
+}
+
+/** Deshace los movimientos recién creados si otro request ya descontó los ítems. */
+async function rollbackSettlement(tx: typeof transactions.$inferSelect) {
+  if (tx.transferGroupId) {
+    await db.delete(transactions).where(eq(transactions.transferGroupId, tx.transferGroupId));
+  } else {
+    await db.delete(transactions).where(eq(transactions.id, tx.id));
+  }
+}
+
+/**
+ * Descuenta UN ítem puntual en la cuenta elegida del dueño. Con `lenderAccountId`, la plata
+ * sale de otra persona y queda registrada como deuda del dueño con ella.
  */
 export async function settleSingleMonthlyItemAction(input: {
   itemId: number;
   accountId: number;
+  lenderAccountId?: number | null;
   date?: string;
+  concept?: string;
 }) {
   await requireAdmin();
   const item = await db.query.monthlyItems.findFirst({
@@ -793,28 +971,36 @@ export async function settleSingleMonthlyItemAction(input: {
   const amt = Number(item.amount ?? 0);
   if (amt <= 0) throw new Error("Primero ingresá un importe mayor a $0 para descontar");
 
-  const txDate = input.date || todayISO();
-  const [createdTx] = await db
-    .insert(transactions)
-    .values({
-      accountId: input.accountId,
-      date: txDate,
-      type: "OUT",
-      amount: amt.toFixed(2),
-      concept: item.concept,
-      notes: `Pago mensual ${formatPeriodLabel(item.period)}`,
-      sortOrder: 9000,
-    })
-    .returning();
+  const { ownerAcc, lenderAcc } = await resolveSettleAccounts(
+    item.personId,
+    input.accountId,
+    input.lenderAccountId
+  );
 
-  await db
+  const txDate = input.date || todayISO();
+  const createdTx = await createSettlementTransactions({
+    ownerAcc,
+    lenderAcc,
+    date: txDate,
+    amount: amt,
+    concept: input.concept?.trim() || item.concept,
+    notes: `Pago mensual ${formatPeriodLabel(item.period)}`,
+  });
+
+  const updated = await db
     .update(monthlyItems)
     .set({
       status: "PAID",
       paidAt: item.paidAt ?? txDate,
       settledTransactionId: createdTx.id,
     })
-    .where(eq(monthlyItems.id, item.id));
+    .where(and(eq(monthlyItems.id, item.id), isNull(monthlyItems.settledTransactionId)))
+    .returning({ id: monthlyItems.id });
+
+  if (updated.length === 0) {
+    await rollbackSettlement(createdTx);
+    throw new Error("Este ítem ya fue descontado en cuenta");
+  }
 
   revalidateAll();
 }
@@ -822,15 +1008,23 @@ export async function settleSingleMonthlyItemAction(input: {
 /**
  * Liquida TODOS los ítems con importe (servicios + extras no descontados aún) de una persona en un mes
  * generando un único movimiento "Servicios <Mes Año>" en la cuenta elegida (ej. Mamá -> Cocos).
+ * Con `lenderAccountId`, el total sale de otra persona como préstamo.
  */
 export async function settlePersonMonthSummaryAction(input: {
   period: string;
   personId: number;
   accountId: number;
+  lenderAccountId?: number | null;
   date?: string;
   customConcept?: string;
 }) {
   await requireAdmin();
+
+  const { ownerAcc, lenderAcc } = await resolveSettleAccounts(
+    input.personId,
+    input.accountId,
+    input.lenderAccountId
+  );
 
   const items = await db.query.monthlyItems.findMany({
     where: and(
@@ -854,24 +1048,20 @@ export async function settlePersonMonthSummaryAction(input: {
   const concept = input.customConcept?.trim() || defaultLabel;
 
   const detailNote = validItems
-    .map((i) => `${i.concept}: $${Number(i.amount).toLocaleString("es-AR")}`)
+    .map((i) => `${i.concept}: ${formatMoney(i.amount, "ARS")}`)
     .join(" · ");
 
-  const [createdTx] = await db
-    .insert(transactions)
-    .values({
-      accountId: input.accountId,
-      date: txDate,
-      type: "OUT",
-      amount: total.toFixed(2),
-      concept,
-      notes: detailNote,
-      settlementPeriod: input.period,
-      sortOrder: 9000,
-    })
-    .returning();
+  const createdTx = await createSettlementTransactions({
+    ownerAcc,
+    lenderAcc,
+    date: txDate,
+    amount: total,
+    concept,
+    notes: detailNote,
+    settlementPeriod: input.period,
+  });
 
-  await db
+  const updated = await db
     .update(monthlyItems)
     .set({
       status: "PAID",
@@ -879,11 +1069,22 @@ export async function settlePersonMonthSummaryAction(input: {
       settledTransactionId: createdTx.id,
     })
     .where(
-      inArray(
-        monthlyItems.id,
-        validItems.map((i) => i.id)
+      and(
+        inArray(
+          monthlyItems.id,
+          validItems.map((i) => i.id)
+        ),
+        isNull(monthlyItems.settledTransactionId)
       )
-    );
+    )
+    .returning({ id: monthlyItems.id });
+
+  if (updated.length !== validItems.length) {
+    // Otro request descontó parte de estos ítems en paralelo: deshacer todo para no duplicar.
+    // Borrar los movimientos pone settledTransactionId en NULL (FK ON DELETE SET NULL).
+    await rollbackSettlement(createdTx);
+    throw new Error("Algunos ítems ya se descontaron mientras tanto. Recargá y volvé a intentar.");
+  }
 
   revalidateAll();
   return { total, count: validItems.length };

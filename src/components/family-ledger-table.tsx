@@ -149,6 +149,11 @@ export function FamilyLedgerTable({
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="font-medium text-slate-900">{row.concept}</div>
+                    {row.affectsDebt && (
+                      <span className="mr-2 inline-block rounded bg-indigo-50 px-1.5 py-0.5 text-[0.6875rem] text-indigo-800">
+                        Préstamo
+                      </span>
+                    )}
                     {row.refAmount && row.refCurrency && (
                       <span className="text-xs text-slate-600">
                         Ref: {formatMoney(row.refAmount, row.refCurrency)}

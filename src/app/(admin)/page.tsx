@@ -7,7 +7,7 @@ import {
   Wallet,
   ArrowUpRight,
 } from "lucide-react";
-import { getMonthlyPaymentsData } from "@/lib/queries";
+import { getDebtBalances, getMonthlyPaymentsData } from "@/lib/queries";
 import {
   currentPeriodISO,
   formatDateAR,
@@ -16,11 +16,14 @@ import {
   formatShortPeriodLabel,
 } from "@/lib/format";
 import { EmptyState } from "@/components/ui-feedback";
+import { DebtsPanel } from "@/components/debts-panel";
 
 export default async function DashboardPage() {
   const period = currentPeriodISO();
-  const { people, items, carryOverItems } =
-    await getMonthlyPaymentsData(period);
+  const [{ people, items, carryOverItems }, debtBalances] = await Promise.all([
+    getMonthlyPaymentsData(period),
+    getDebtBalances(),
+  ]);
   const managedPeople = people.filter((p) => p.hasManagedAccount);
   const pendingBills = [
     ...carryOverItems.map((b) => ({ ...b, isCarryOver: true })),
@@ -260,45 +263,49 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <section
-          aria-labelledby="settlement-heading"
-          className="panel p-4 sm:p-6"
-        >
-          <span className="mb-4 inline-flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-            <Wallet className="size-4" />
-          </span>
-          <h2 id="settlement-heading" className="text-base font-medium">
-            Por descontar en cuenta
-          </h2>
-          <p className="mt-2 text-xs leading-relaxed text-slate-600">
-            Gastos de {formatPeriodLabel(period).toLowerCase()} que todavía no
-            se registraron como egreso. No es lo mismo que un pago pendiente.
-          </p>
-          <div className="mt-4 divide-y divide-slate-200">
-            {unsettledByPerson.map(({ person, count, total }) => (
-              <Link
-                key={person.id}
-                href={`/pagos?periodo=${period}&tab=resumen&persona=${person.id}`}
-                className="-mx-2 flex flex-wrap items-center justify-between gap-2 rounded-lg px-2 py-3 hover:bg-slate-50"
-              >
-                <div>
-                  <p className="text-sm font-medium">{person.name}</p>
-                  <p className="mt-1 text-xs text-slate-600 tabular-nums">
-                    {count} conceptos
-                  </p>
-                </div>
-                <span className="text-right text-sm font-medium tabular-nums">
-                  {formatMoney(total, "ARS")}
-                </span>
-              </Link>
-            ))}
-          </div>
-          {unsettledByPerson.length === 0 && (
-            <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-              No hay gastos con importe pendientes de descontar.
+        <div className="space-y-6">
+          <section
+            aria-labelledby="settlement-heading"
+            className="panel p-4 sm:p-6"
+          >
+            <span className="mb-4 inline-flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+              <Wallet className="size-4" />
+            </span>
+            <h2 id="settlement-heading" className="text-base font-medium">
+              Por descontar en cuenta
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600">
+              Gastos de {formatPeriodLabel(period).toLowerCase()} que todavía no
+              se registraron como egreso. No es lo mismo que un pago pendiente.
             </p>
-          )}
-        </section>
+            <div className="mt-4 divide-y divide-slate-200">
+              {unsettledByPerson.map(({ person, count, total }) => (
+                <Link
+                  key={person.id}
+                  href={`/pagos?periodo=${period}&tab=resumen&persona=${person.id}`}
+                  className="-mx-2 flex flex-wrap items-center justify-between gap-2 rounded-lg px-2 py-3 hover:bg-slate-50"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{person.name}</p>
+                    <p className="mt-1 text-xs text-slate-600 tabular-nums">
+                      {count} conceptos
+                    </p>
+                  </div>
+                  <span className="text-right text-sm font-medium tabular-nums">
+                    {formatMoney(total, "ARS")}
+                  </span>
+                </Link>
+              ))}
+            </div>
+            {unsettledByPerson.length === 0 && (
+              <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+                No hay gastos con importe pendientes de descontar.
+              </p>
+            )}
+          </section>
+
+          <DebtsPanel balances={debtBalances} people={people} />
+        </div>
       </div>
     </div>
   );

@@ -72,6 +72,15 @@ export interface MonthlyItemRow {
 
 type SortField = "dueDate" | "concept" | "person" | "amount" | "status";
 
+type SettleTarget =
+  | { kind: "person"; person: PersonCardSummary }
+  | { kind: "item"; item: MonthlyItemRow; person: PersonCardSummary };
+
+/** Los ítems mensuales son en ARS: solo se descuentan de cuentas activas en pesos. */
+function settleableAccounts(p: PersonCardSummary) {
+  return p.accounts.filter((a) => a.isActive && a.currency === "ARS");
+}
+
 export function MonthlyPaymentsClient({
   period,
   people,
@@ -134,10 +143,12 @@ export function MonthlyPaymentsClient({
   const [extraIsArrears, setExtraIsArrears] = useState(false);
   const [extraPaid, setExtraPaid] = useState(true);
 
-  // Modal Liquidar Resumen de Persona en Subcuenta
-  const [settleModalPerson, setSettleModalPerson] =
-    useState<PersonCardSummary | null>(null);
-  const [settleAccountId, setSettleAccountId] = useState<number>(0);
+  // Modal Descontar (ítem individual o resumen de la persona) en cuenta
+  const [settleTarget, setSettleTarget] = useState<SettleTarget | null>(null);
+  // Cuenta de la que sale la plata (del dueño o de otra persona que presta)
+  const [settleSourceAccountId, setSettleSourceAccountId] = useState<number>(0);
+  // Cuenta del dueño donde se registra el gasto cuando presta otra persona
+  const [settleOwnerAccountId, setSettleOwnerAccountId] = useState<number>(0);
   const [settleDate, setSettleDate] = useState<string>(todayISO());
   const [settleConcept, setSettleConcept] = useState<string>("");
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -345,50 +356,106 @@ export function MonthlyPaymentsClient({
     });
   }
 
-  function openSettlePersonModal(p: PersonCardSummary) {
+  function openSettleModal(target: SettleTarget) {
+    const ownAccounts = settleableAccounts(target.person);
     setActionError(null);
-    setSettleModalPerson(p);
-    setSettleAccountId(p.accounts[0]?.id ?? 0);
+    setSettleTarget(target);
+    setSettleSourceAccountId(ownAccounts[0]?.id ?? 0);
+    setSettleOwnerAccountId(ownAccounts[0]?.id ?? 0);
     setSettleDate(todayISO());
-    setSettleConcept(`Servicios ${formatPeriodLabel(period)}`);
+    setSettleConcept(
+      target.kind === "item"
+        ? target.item.concept
+        : `Servicios ${formatPeriodLabel(period)}`,
+    );
   }
 
-  function handleConfirmSettleSummary(e: React.FormEvent) {
-    e.preventDefault();
-    if (!settleModalPerson || !settleAccountId) return;
-    const person = settleModalPerson;
-    runAction(async () => {
-      const res = await settlePersonMonthSummaryAction({
-        period,
-        personId: person.id,
-        accountId: settleAccountId,
-        date: settleDate,
-        customConcept: settleConcept,
-      });
-      setFeedback(
-        `Descontado ${formatMoney(res.total, "ARS")} (${res.count} ítems) en la cuenta de ${person.name}`,
-      );
-      setSettleModalPerson(null);
-    });
+  function closeSettleModal() {
+    setSettleTarget(null);
+    setActionError(null);
+  }
+
+  function openSettlePersonModal(p: PersonCardSummary) {
+    openSettleModal({ kind: "person", person: p });
   }
 
   function handleSettleSingleItem(item: MonthlyItemRow) {
     const owner = people.find((p) => p.id === item.personId);
-    if (!owner || owner.accounts.length === 0) return;
-    const targetAcc = owner.accounts[0];
-    if (
-      !confirm(
-        `¿Descontar "${item.concept}" (${formatMoney(item.amount, "ARS")}) en la cuenta ${targetAcc.name} de ${owner.name}?`,
-      )
-    ) {
-      return;
-    }
+    if (!owner || settleableAccounts(owner).length === 0) return;
+    openSettleModal({ kind: "item", item, person: owner });
+  }
+
+  // Cuentas que pueden poner la plata: primero las del dueño, luego las de otras personas
+  const settleLenderGroups = useMemo(
+    () =>
+      settleTarget
+        ? people
+            .filter((p) => p.id !== settleTarget.person.id)
+            .map((p) => ({ person: p, accounts: settleableAccounts(p) }))
+            .filter((g) => g.accounts.length > 0)
+        : [],
+    [people, settleTarget],
+  );
+  const settleLender = settleLenderGroups.find((g) =>
+    g.accounts.some((a) => a.id === settleSourceAccountId),
+  )?.person;
+  const settleAmount = !settleTarget
+    ? 0
+    : settleTarget.kind === "item"
+      ? Number(settleTarget.item.amount ?? 0)
+      : Math.round(
+          items
+            .filter(
+              (i) =>
+                i.personId === settleTarget.person.id &&
+                !i.settledTransactionId &&
+                Number(i.amount ?? 0) > 0,
+            )
+            .reduce((acc, i) => acc + Number(i.amount ?? 0), 0) * 100,
+        ) / 100;
+
+  function handleConfirmSettle(e: React.FormEvent) {
+    e.preventDefault();
+    if (!settleTarget || !settleSourceAccountId) return;
+    const target = settleTarget;
+    const lender = settleLender;
+    const ownerAccountId = lender ? settleOwnerAccountId : settleSourceAccountId;
+    const lenderAccountId = lender ? settleSourceAccountId : null;
+    if (!ownerAccountId) return;
+    const sourceName =
+      [...target.person.accounts, ...(lender?.accounts ?? [])].find(
+        (a) => a.id === settleSourceAccountId,
+      )?.name ?? "";
+    const loanSuffix = lender
+      ? ` con dinero de ${lender.name} (queda como deuda de ${target.person.name})`
+      : "";
+
     runAction(async () => {
-      await settleSingleMonthlyItemAction({
-        itemId: item.id,
-        accountId: targetAcc.id,
-      });
-      setFeedback(`${item.concept} se descontó de ${targetAcc.name}.`);
+      if (target.kind === "item") {
+        await settleSingleMonthlyItemAction({
+          itemId: target.item.id,
+          accountId: ownerAccountId,
+          lenderAccountId,
+          date: settleDate,
+          concept: settleConcept,
+        });
+        setFeedback(
+          `${target.item.concept} se descontó de ${sourceName}${loanSuffix}.`,
+        );
+      } else {
+        const res = await settlePersonMonthSummaryAction({
+          period,
+          personId: target.person.id,
+          accountId: ownerAccountId,
+          lenderAccountId,
+          date: settleDate,
+          customConcept: settleConcept,
+        });
+        setFeedback(
+          `Descontado ${formatMoney(res.total, "ARS")} (${res.count} ítems) de ${target.person.name}${loanSuffix}.`,
+        );
+      }
+      setSettleTarget(null);
     });
   }
 
@@ -579,7 +646,7 @@ export function MonthlyPaymentsClient({
           />
         </div>
       )}
-      {!extraOpen && !settleModalPerson && actionError && (
+      {!extraOpen && !settleTarget && actionError && (
         <div className="sticky top-36 z-20 lg:top-20">{errorNotice}</div>
       )}
       <p role="status" className="sr-only">
@@ -829,7 +896,7 @@ export function MonthlyPaymentsClient({
                       (p) =>
                         p.id === item.personId &&
                         p.hasManagedAccount &&
-                        p.accounts.length > 0,
+                        settleableAccounts(p).length > 0,
                     ) &&
                     !item.settledTransactionId &&
                     Number(item.amount ?? 0) > 0,
@@ -1038,7 +1105,7 @@ export function MonthlyPaymentsClient({
                     const canSettleIndividually =
                       owner &&
                       owner.hasManagedAccount &&
-                      owner.accounts.length > 0 &&
+                      settleableAccounts(owner).length > 0 &&
                       !item.settledTransactionId &&
                       Number(item.amount ?? 0) > 0;
 
@@ -1298,7 +1365,7 @@ export function MonthlyPaymentsClient({
                       + Agregar extra a {p.name}
                     </button>
 
-                    {p.hasManagedAccount && p.accounts.length > 0 && (
+                    {p.hasManagedAccount && settleableAccounts(p).length > 0 && (
                       <div>
                         {unsettledTotal > 0 ? (
                           <button
@@ -1489,32 +1556,25 @@ export function MonthlyPaymentsClient({
         </Modal>
       )}
 
-      {/* Modal Confirmar Descuento del Resumen Mensual en Subcuenta */}
-      {settleModalPerson && (
-        <Modal
-          labelledBy="settle-title"
-          onClose={() => {
-            setSettleModalPerson(null);
-            setActionError(null);
-          }}
-          busy={isPending}
-        >
-          <form onSubmit={handleConfirmSettleSummary} className="p-4 sm:p-6">
+      {/* Modal Descontar en cuenta (ítem individual o resumen del mes) */}
+      {settleTarget && (
+        <Modal labelledBy="settle-title" onClose={closeSettleModal} busy={isPending}>
+          <form onSubmit={handleConfirmSettle} className="p-4 sm:p-6">
             <fieldset disabled={isPending} className="min-w-0 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <h3
                   id="settle-title"
-                  className="text-base font-semibold text-slate-900"
+                  className="min-w-0 break-words text-base font-semibold text-slate-900"
                 >
-                  Descontar resumen · {settleModalPerson.name}
+                  {settleTarget.kind === "item"
+                    ? `Descontar ${settleTarget.item.concept}`
+                    : "Descontar resumen"}{" "}
+                  · {settleTarget.person.name}
                 </h3>
                 <button
                   type="button"
-                  aria-label="Cerrar descuento de resumen"
-                  onClick={() => {
-                    setSettleModalPerson(null);
-                    setActionError(null);
-                  }}
+                  aria-label="Cerrar descuento"
+                  onClick={closeSettleModal}
                   className="icon-button -mr-2"
                 >
                   <X className="w-5 h-5" />
@@ -1522,31 +1582,94 @@ export function MonthlyPaymentsClient({
               </div>
               {errorNotice}
 
-              <p className="text-xs text-slate-600">
-                Se generará un movimiento de salida en la cuenta elegida por
-                todos los servicios y extras pendientes de descontar en{" "}
-                <strong>{formatPeriodLabel(period)}</strong>, dejándolos
-                marcados para no duplicarlos.
-              </p>
+              <div className="flex items-baseline justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="text-xs text-slate-600">
+                  {settleTarget.kind === "item"
+                    ? `Importe de ${formatPeriodLabel(settleTarget.item.period)}`
+                    : `Pendiente de descontar en ${formatPeriodLabel(period)}`}
+                </span>
+                <span className="text-base font-semibold text-slate-900 tabular-nums">
+                  {formatMoney(settleAmount, "ARS")}
+                </span>
+              </div>
 
               <div>
                 <label htmlFor="settle-account" className="field-label">
-                  ¿De qué cuenta descontar?
+                  ¿Con qué dinero se paga?
                 </label>
                 <select
                   id="settle-account"
-                  value={settleAccountId}
-                  onChange={(e) => setSettleAccountId(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
+                  value={settleSourceAccountId}
+                  onChange={(e) => setSettleSourceAccountId(Number(e.target.value))}
+                  className="field"
                 >
-                  {settleModalPerson.accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} (Saldo actual:{" "}
-                      {formatMoney(a.balance, a.currency)})
-                    </option>
+                  <optgroup label={`Cuentas de ${settleTarget.person.name}`}>
+                    {settleableAccounts(settleTarget.person).map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} (saldo {formatMoney(a.balance, a.currency)})
+                      </option>
+                    ))}
+                  </optgroup>
+                  {settleLenderGroups.map((g) => (
+                    <optgroup
+                      key={g.person.id}
+                      label={`Pagar con dinero de ${g.person.name}`}
+                    >
+                      {g.accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {g.person.name} · {a.name} (saldo{" "}
+                          {formatMoney(a.balance, a.currency)})
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
+
+              {settleLender && (
+                <>
+                  <div>
+                    <label htmlFor="settle-owner-account" className="field-label">
+                      Registrar el gasto en la cuenta de {settleTarget.person.name}
+                    </label>
+                    <select
+                      id="settle-owner-account"
+                      value={settleOwnerAccountId}
+                      onChange={(e) =>
+                        setSettleOwnerAccountId(Number(e.target.value))
+                      }
+                      className="field"
+                    >
+                      {settleableAccounts(settleTarget.person).map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="flex gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs text-indigo-900">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Se registrará un préstamo de{" "}
+                      <strong>{settleLender.name}</strong> a{" "}
+                      <strong>{settleTarget.person.name}</strong> por{" "}
+                      <strong className="tabular-nums">
+                        {formatMoney(settleAmount, "ARS")}
+                      </strong>
+                      . El gasto queda en la cuenta de {settleTarget.person.name}{" "}
+                      y la deuda se ve en el resumen general.
+                    </span>
+                  </p>
+                </>
+              )}
+
+              {!settleLender && (
+                <p className="text-xs text-slate-600">
+                  {settleTarget.kind === "item"
+                    ? "Se generará un egreso en la cuenta elegida y el ítem quedará marcado como descontado."
+                    : `Se generará un único egreso por todos los servicios y extras pendientes de descontar en ${formatPeriodLabel(period)}, dejándolos marcados para no duplicarlos.`}
+                </p>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1559,7 +1682,7 @@ export function MonthlyPaymentsClient({
                     value={settleDate}
                     onChange={(e) => setSettleDate(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                    className="field"
                   />
                 </div>
                 <div>
@@ -1572,7 +1695,7 @@ export function MonthlyPaymentsClient({
                     value={settleConcept}
                     onChange={(e) => setSettleConcept(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                    className="field"
                   />
                 </div>
               </div>
@@ -1580,18 +1703,15 @@ export function MonthlyPaymentsClient({
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSettleModalPerson(null);
-                    setActionError(null);
-                  }}
-                  className="min-h-11 px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  onClick={closeSettleModal}
+                  className="btn-ghost"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={isPending}
-                  className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                  disabled={isPending || !settleSourceAccountId}
+                  className="btn-primary"
                 >
                   {isPending ? "Descontando…" : "Confirmar descuento"}
                 </button>
