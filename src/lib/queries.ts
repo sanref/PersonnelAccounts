@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lt } from "drizzle-orm";
+import { and, asc, desc, eq, lt, ne } from "drizzle-orm";
 import { db, people, accounts, transactions, services, monthlyItems } from "@/db";
 
 export interface AccountSummary {
@@ -121,6 +121,7 @@ export async function getPersonDetailBySlug(slug: string) {
         },
       },
       monthlyItems: {
+        where: ne(monthlyItems.status, "SKIPPED"),
         orderBy: [desc(monthlyItems.period), asc(monthlyItems.sortOrder), asc(monthlyItems.id)],
       },
     },
@@ -144,6 +145,7 @@ export async function getPersonDetailByShareToken(token: string) {
         },
       },
       monthlyItems: {
+        where: ne(monthlyItems.status, "SKIPPED"),
         orderBy: [desc(monthlyItems.period), asc(monthlyItems.sortOrder), asc(monthlyItems.id)],
       },
     },
@@ -318,7 +320,10 @@ export async function getMonthlyPaymentsData(period: string) {
         with: { person: true },
       }),
       db.query.monthlyItems.findMany({
-        where: eq(monthlyItems.period, period),
+        where: and(
+          eq(monthlyItems.period, period),
+          ne(monthlyItems.status, "SKIPPED")
+        ),
         orderBy: [
           asc(monthlyItems.dueDate),
           asc(monthlyItems.sortOrder),
@@ -353,6 +358,7 @@ export async function getMonthlyPaymentsData(period: string) {
       db
         .selectDistinct({ period: monthlyItems.period })
         .from(monthlyItems)
+        .where(ne(monthlyItems.status, "SKIPPED"))
         .orderBy(desc(monthlyItems.period)),
     ]);
 

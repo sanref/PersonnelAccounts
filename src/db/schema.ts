@@ -107,7 +107,7 @@ export const monthlyItems = pgTable(
     concept: text("concept").notNull(),
     dueDate: date("due_date"),
     amount: numeric("amount", { precision: 14, scale: 2 }), // nullable until bill arrives
-    status: text("status").notNull().default("PENDING"), // 'PENDING' | 'PAID'
+    status: text("status").notNull().default("PENDING"), // 'PENDING' | 'PAID' | 'SKIPPED'
     paidAt: date("paid_at"),
     settledTransactionId: integer("settled_transaction_id").references(
       () => transactions.id,

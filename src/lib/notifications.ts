@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import * as webpush from "web-push";
-import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import {
   db,
   monthlyItems,
@@ -166,6 +166,8 @@ export async function ensurePeriodsInitialized(todayYMD: string, daysBefore: num
   if (activeServices.length === 0) return;
 
   for (const period of periods) {
+    // Incluye PENDING, PAID y SKIPPED (quitados manualmente en ese mes)
+    // para no volver a recrear servicios que el usuario borró del período.
     const existing = await db.query.monthlyItems.findMany({
       where: eq(monthlyItems.period, period),
     });
@@ -173,20 +175,44 @@ export async function ensurePeriodsInitialized(todayYMD: string, daysBefore: num
     const toCreate = activeServices.filter((s) => !existingSrvIds.has(s.id));
 
     if (toCreate.length > 0) {
-      await db.insert(monthlyItems).values(
-        toCreate.map((s) => ({
-          period,
-          billedPeriod: s.paysInArrears ? shiftPeriod(period, -1) : period,
-          personId: s.personId,
-          serviceId: s.id,
-          kind: "SERVICE",
-          concept: s.name,
-          dueDate: clampDayForPeriod(period, s.defaultDueDay ?? 15),
-          amount: s.defaultAmount ?? null,
-          status: "PENDING",
-          notes: s.notes,
-          sortOrder: s.sortOrder,
-        }))
+      await Promise.all(
+        toCreate.map((s) => {
+          const billedPeriod = s.paysInArrears ? shiftPeriod(period, -1) : period;
+          const dueDate = clampDayForPeriod(period, s.defaultDueDay ?? 15);
+          return db.execute(sql`
+            INSERT INTO monthly_items (
+              period,
+              billed_period,
+              person_id,
+              service_id,
+              kind,
+              concept,
+              due_date,
+              amount,
+              status,
+              notes,
+              sort_order
+            )
+            SELECT
+              ${period}::text,
+              ${billedPeriod}::text,
+              ${s.personId}::integer,
+              ${s.id}::integer,
+              'SERVICE'::text,
+              ${s.name}::text,
+              ${dueDate}::date,
+              ${s.defaultAmount ?? null}::numeric,
+              'PENDING'::text,
+              ${s.notes ?? null}::text,
+              ${s.sortOrder}::integer
+            WHERE NOT EXISTS (
+              SELECT 1
+              FROM monthly_items m
+              WHERE m.period = ${period}::text
+                AND m.service_id = ${s.id}::integer
+            )
+          `);
+        })
       );
     }
   }
@@ -338,7 +364,7 @@ function buildNotificationPayload(
     return {
       title: `${prefix}: ${c.concept} (${c.personName})`,
       body: `${amountText} · Vencimiento ${formatDateAR(c.dueDate)}`,
-      url: `/pagos?period=${c.period}`,
+      url: `/pagos?periodo=${c.period}`,
       tag: `mc-due-${todayYMD}-${c.concept}`,
     };
   }

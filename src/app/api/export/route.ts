@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
-import { asc, desc } from "drizzle-orm";
+import { asc, desc, ne } from "drizzle-orm";
 import { db, people, accounts, transactions, monthlyItems } from "@/db";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { computeSignedDelta } from "@/lib/queries";
@@ -26,6 +26,7 @@ export async function GET() {
       },
     }),
     db.query.monthlyItems.findMany({
+      where: ne(monthlyItems.status, "SKIPPED"),
       orderBy: [desc(monthlyItems.period), asc(monthlyItems.sortOrder)],
       with: { person: true },
     }),

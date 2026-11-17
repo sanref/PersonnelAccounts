@@ -192,7 +192,7 @@ export function NotificationBell({
                 return (
                   <Link
                     key={item.id}
-                    href={`/pagos?period=${item.period}`}
+                    href={`/pagos?periodo=${item.period}`}
                     onClick={() => setOpen(false)}
                     className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 transition"
                   >

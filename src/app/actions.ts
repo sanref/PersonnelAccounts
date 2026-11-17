@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import {
   db,
   people,
@@ -12,6 +12,7 @@ import {
   transactions,
   services,
   monthlyItems,
+  notificationDeliveries,
   notificationSettings,
   pushSubscriptions,
 } from "@/db";
@@ -550,6 +551,9 @@ export async function updateServiceDueDayAction(
 
 export async function deleteServiceAction(id: number) {
   await requireAdmin();
+  await db
+    .delete(monthlyItems)
+    .where(and(eq(monthlyItems.serviceId, id), eq(monthlyItems.status, "SKIPPED")));
   await db.delete(services).where(eq(services.id, id));
   revalidateAll();
 }
@@ -573,12 +577,54 @@ export async function generateMonthItemsAction(period: string) {
     db.query.monthlyItems.findMany({ where: eq(monthlyItems.period, period) }),
   ]);
 
-  const existingSrvIds = new Set(existingItems.map((i) => i.serviceId).filter(Boolean));
-  const toCreate = activeServices.filter((s) => !existingSrvIds.has(s.id));
+  const visibleSrvIds = new Set(
+    existingItems
+      .filter((i) => i.status !== "SKIPPED")
+      .map((i) => i.serviceId)
+      .filter(Boolean)
+  );
+  const missingServices = activeServices.filter((s) => !visibleSrvIds.has(s.id));
 
-  if (toCreate.length > 0) {
-    await db.insert(monthlyItems).values(
-      toCreate.map((s) => ({
+  const toInsert: Array<typeof monthlyItems.$inferInsert> = [];
+  const restoreOps: Array<Promise<unknown>> = [];
+
+  for (const s of missingServices) {
+    const skippedRows = existingItems.filter(
+      (i) => i.serviceId === s.id && i.status === "SKIPPED"
+    );
+
+    if (skippedRows.length > 0) {
+      const [primary, ...duplicates] = skippedRows;
+      if (duplicates.length > 0) {
+        restoreOps.push(
+          db.delete(monthlyItems).where(
+            inArray(
+              monthlyItems.id,
+              duplicates.map((d) => d.id)
+            )
+          )
+        );
+      }
+      restoreOps.push(
+        db
+          .update(monthlyItems)
+          .set({
+            billedPeriod: s.paysInArrears ? shiftPeriod(period, -1) : period,
+            personId: s.personId,
+            kind: "SERVICE",
+            concept: s.name,
+            dueDate: clampDayForPeriod(period, s.defaultDueDay ?? 15),
+            amount: s.defaultAmount ?? null,
+            status: "PENDING",
+            paidAt: null,
+            settledTransactionId: null,
+            notes: s.notes,
+            sortOrder: s.sortOrder,
+          })
+          .where(eq(monthlyItems.id, primary.id))
+      );
+    } else {
+      toInsert.push({
         period,
         billedPeriod: s.paysInArrears ? shiftPeriod(period, -1) : period,
         personId: s.personId,
@@ -590,12 +636,19 @@ export async function generateMonthItemsAction(period: string) {
         status: "PENDING",
         notes: s.notes,
         sortOrder: s.sortOrder,
-      }))
-    );
+      });
+    }
+  }
+
+  if (restoreOps.length > 0) {
+    await Promise.all(restoreOps);
+  }
+  if (toInsert.length > 0) {
+    await db.insert(monthlyItems).values(toInsert);
   }
 
   revalidateAll();
-  return { added: toCreate.length };
+  return { added: missingServices.length };
 }
 
 export async function addMonthlyItemAction(input: {
@@ -677,7 +730,47 @@ export async function updateMonthlyItemAction(input: {
 
 export async function deleteMonthlyItemAction(id: number) {
   await requireAdmin();
-  await db.delete(monthlyItems).where(eq(monthlyItems.id, id));
+  const existing = await db.query.monthlyItems.findFirst({
+    where: eq(monthlyItems.id, id),
+  });
+  if (!existing) {
+    revalidateAll();
+    return;
+  }
+
+  if (existing.serviceId !== null) {
+    // Si es un servicio del catálogo, lo marcamos como SKIPPED en este período
+    // en lugar de eliminar la fila físicamente, para que la inicialización automática
+    // de notificaciones/layout no vuelva a recrearlo.
+    await Promise.all([
+      db
+        .delete(monthlyItems)
+        .where(
+          and(
+            eq(monthlyItems.period, existing.period),
+            eq(monthlyItems.serviceId, existing.serviceId),
+            eq(monthlyItems.status, "SKIPPED"),
+            ne(monthlyItems.id, existing.id)
+          )
+        ),
+      db
+        .delete(notificationDeliveries)
+        .where(eq(notificationDeliveries.monthlyItemId, existing.id)),
+    ]);
+
+    await db
+      .update(monthlyItems)
+      .set({
+        status: "SKIPPED",
+        amount: null,
+        paidAt: null,
+        settledTransactionId: null,
+      })
+      .where(eq(monthlyItems.id, existing.id));
+  } else {
+    await db.delete(monthlyItems).where(eq(monthlyItems.id, existing.id));
+  }
+
   revalidateAll();
 }
 
@@ -694,7 +787,7 @@ export async function settleSingleMonthlyItemAction(input: {
   const item = await db.query.monthlyItems.findFirst({
     where: eq(monthlyItems.id, input.itemId),
   });
-  if (!item) throw new Error("Ítem no encontrado");
+  if (!item || item.status === "SKIPPED") throw new Error("Ítem no encontrado");
   if (item.settledTransactionId) throw new Error("Este ítem ya fue descontado en cuenta");
 
   const amt = Number(item.amount ?? 0);
@@ -743,6 +836,7 @@ export async function settlePersonMonthSummaryAction(input: {
     where: and(
       eq(monthlyItems.period, input.period),
       eq(monthlyItems.personId, input.personId),
+      ne(monthlyItems.status, "SKIPPED"),
       isNull(monthlyItems.settledTransactionId)
     ),
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useOptimistic, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -63,8 +63,8 @@ type SortField = "dueDate" | "concept" | "person" | "amount" | "status";
 export function MonthlyPaymentsClient({
   period,
   people,
-  items,
-  carryOverItems,
+  items: serverItems,
+  carryOverItems: serverCarryOverItems,
   missingServicesCount,
   initialTab,
   initialPersonFilter,
@@ -79,6 +79,14 @@ export function MonthlyPaymentsClient({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+
+  const [{ items, carryOverItems }, removeOptimisticItem] = useOptimistic(
+    { items: serverItems, carryOverItems: serverCarryOverItems },
+    (current, deletedId: number) => ({
+      items: current.items.filter((i) => i.id !== deletedId),
+      carryOverItems: current.carryOverItems.filter((i) => i.id !== deletedId),
+    })
+  );
 
   const [tab, setTab] = useState<"grilla" | "resumen">(initialTab);
   const [showCarryOver, setShowCarryOver] = useState(true);
@@ -820,8 +828,16 @@ export function MonthlyPaymentsClient({
                             onClick={() => {
                               if (!confirm(`¿Quitar "${item.concept}"?`)) return;
                               startTransition(async () => {
-                                await deleteMonthlyItemAction(item.id);
-                                router.refresh();
+                                removeOptimisticItem(item.id);
+                                try {
+                                  await deleteMonthlyItemAction(item.id);
+                                } catch (err) {
+                                  alert(
+                                    err instanceof Error
+                                      ? err.message
+                                      : "Error al quitar el servicio"
+                                  );
+                                }
                               });
                             }}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"

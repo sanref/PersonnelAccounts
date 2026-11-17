@@ -5,12 +5,18 @@ import { MonthlyPaymentsClient } from "@/components/monthly-payments-client";
 export default async function PagosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ periodo?: string; tab?: string; persona?: string }>;
+  searchParams: Promise<{
+    periodo?: string;
+    period?: string;
+    tab?: string;
+    persona?: string;
+  }>;
 }) {
   const sp = await searchParams;
+  const rawPeriod = sp.periodo ?? sp.period;
   const period =
-    sp.periodo && /^\d{4}-\d{2}$/.test(sp.periodo)
-      ? sp.periodo
+    rawPeriod && /^\d{4}-\d{2}$/.test(rawPeriod)
+      ? rawPeriod
       : currentPeriodISO();
 
   const data = await getMonthlyPaymentsData(period);
