@@ -16,6 +16,7 @@ export interface DueAlertItem {
   id: number;
   period: string;
   concept: string;
+  personId: number;
   personName: string;
   dueDate: string;
   amount: string | null;
@@ -250,6 +251,7 @@ export async function getPublicNotificationState() {
       id: item.id,
       period: item.period,
       concept: item.concept,
+      personId: item.personId,
       personName: item.person.name,
       dueDate: item.dueDate,
       amount: item.amount,

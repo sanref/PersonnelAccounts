@@ -14,6 +14,16 @@ import {
   FilterX,
   RefreshCw,
   X,
+  ArrowDownLeft,
+  ArrowUpRight,
+  History,
+  Layers,
+  Receipt,
+  Wallet,
+  HandCoins,
+  TrendingUp,
+  CalendarDays,
+  Clock3,
 } from "lucide-react";
 import type {
   AccountSummary,
@@ -39,6 +49,13 @@ import {
 import { MoneyInput, ToggleSwitch } from "@/components/ui-controls";
 import { Modal } from "@/components/modal";
 import { DebtsPanel } from "@/components/debts-panel";
+import {
+  Avatar,
+  Segmented,
+  SettledTag,
+  SharedTag,
+  Tag,
+} from "@/components/cui";
 
 interface MonthlySummaryGroup {
   period: string;
@@ -76,6 +93,46 @@ export interface PersonDetailProps {
 }
 
 type LedgerSortField = "date" | "concept" | "amount";
+
+/** Tipo de movimiento como etiqueta de color (CUI status tag). */
+function TxTypeTag({ row }: { row: LedgerRow }) {
+  if (row.affectsDebt) {
+    return (
+      <Tag tone="iris" icon={HandCoins}>
+        Préstamo
+      </Tag>
+    );
+  }
+  switch (row.type) {
+    case "IN":
+      return (
+        <Tag tone="success" icon={ArrowDownLeft}>
+          Ingreso
+        </Tag>
+      );
+    case "OUT":
+      return (
+        <Tag tone="danger" icon={ArrowUpRight}>
+          Egreso
+        </Tag>
+      );
+    case "YIELD":
+      return (
+        <Tag tone="success" icon={TrendingUp}>
+          Rendimiento
+        </Tag>
+      );
+    case "TRANSFER_IN":
+    case "TRANSFER_OUT":
+      return (
+        <Tag tone="accent" icon={ArrowLeftRight}>
+          Transferencia
+        </Tag>
+      );
+    default:
+      return null;
+  }
+}
 
 export function PersonLedgerClient({
   detail,
@@ -402,26 +459,28 @@ export function PersonLedgerClient({
     <div className="space-y-6">
       {/* Cabecera de Persona + Saldo Principal */}
       <div className="panel p-4 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="page-title">{person.name}</h1>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
-              {person.defaultCurrency}
-            </span>
-          </div>
-          <p className="mt-4 text-xs text-slate-600">Saldo disponible</p>
-          <p
-            className={`break-words text-3xl font-semibold tracking-tight mt-1 tabular-nums ${
-              isNegative ? "text-rose-600" : "text-slate-900"
-            }`}
-          >
-            {formatMoney(detail.totalBalance, person.defaultCurrency)}
-          </p>
-          {isNegative && (
-            <p className="text-xs font-medium text-rose-600 mt-1">
-              Saldo negativo: {person.name} te debe este importe
+        <div className="flex min-w-0 items-start gap-4">
+          <Avatar name={person.name} seed={person.id} size="lg" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="page-title">{person.name}</h1>
+              <Tag tone="neutral">{person.defaultCurrency}</Tag>
+              {person.shareEnabled && <SharedTag />}
+            </div>
+            <p className="mt-3 text-sm text-ink-3">Saldo disponible</p>
+            <p
+              className={`num break-words text-3xl font-medium mt-0.5 sm:text-4xl ${
+                isNegative ? "text-danger-ink" : "text-ink"
+              }`}
+            >
+              {formatMoney(detail.totalBalance, person.defaultCurrency)}
             </p>
-          )}
+            {isNegative && (
+              <Tag tone="danger" className="mt-2">
+                Saldo negativo: {person.name} te debe este importe
+              </Tag>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -431,7 +490,7 @@ export function PersonLedgerClient({
             disabled={accounts.length === 0 || isPending}
             className="btn-secondary"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="size-4" />
             Ingreso
           </button>
           <button
@@ -440,7 +499,7 @@ export function PersonLedgerClient({
             disabled={accounts.length === 0 || isPending}
             className="btn-primary"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="size-4" />
             Gasto / Pago
           </button>
           {canTransfer && (
@@ -449,7 +508,7 @@ export function PersonLedgerClient({
               onClick={() => openNewTx("TRANSFER")}
               className="btn-secondary"
             >
-              <ArrowLeftRight className="w-4 h-4" />
+              <ArrowLeftRight className="size-4" />
               Transferir
             </button>
           )}
@@ -458,7 +517,7 @@ export function PersonLedgerClient({
             onClick={() => setShareOpen(true)}
             className="btn-ghost"
           >
-            <Share2 className="w-4 h-4" />
+            <Share2 className="size-4" />
             Compartir
           </button>
         </div>
@@ -473,18 +532,33 @@ export function PersonLedgerClient({
       )}
 
       {/* Selector de Subcuentas */}
-      <div className="flex flex-wrap items-center gap-2 tabular-nums">
+      <div
+        role="group"
+        aria-label="Subcuentas"
+        className="grid grid-cols-2 gap-3 tabular-nums sm:grid-cols-3 lg:grid-cols-4"
+      >
         {accounts.length > 1 && (
           <button
             type="button"
+            aria-pressed={selectedAccountId === "ALL"}
             onClick={() => setSelectedAccountId("ALL")}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium border transition cursor-pointer ${
+            className={`flex min-h-11 flex-col items-start gap-1 rounded-panel border p-3 text-left transition-[background-color,border-color,scale] active:scale-[0.98] ${
               selectedAccountId === "ALL"
-                ? "bg-slate-100 text-slate-900 border-slate-300"
-                : "bg-white text-slate-700 border-slate-300 hover:border-slate-400"
+                ? "border-accent bg-accent-soft ring-3 ring-accent/15"
+                : "border-line bg-surface hover:border-line-strong/60"
             }`}
           >
-            Todas ({formatMoney(detail.totalBalance, person.defaultCurrency)})
+            <span
+              className={`flex items-center gap-1.5 text-xs ${selectedAccountId === "ALL" ? "font-medium text-accent-ink" : "text-ink-3"}`}
+            >
+              <Layers className="size-3.5" aria-hidden="true" />
+              Todas
+            </span>
+            <span
+              className={`num text-lg font-medium ${detail.totalBalance < -0.004 ? "text-danger-ink" : "text-ink"}`}
+            >
+              {formatMoney(detail.totalBalance, person.defaultCurrency)}
+            </span>
           </button>
         )}
         {accounts.map((acc) => {
@@ -495,17 +569,25 @@ export function PersonLedgerClient({
             <button
               key={acc.id}
               type="button"
+              aria-pressed={active}
               onClick={() =>
                 setSelectedAccountId(accounts.length === 1 ? "ALL" : acc.id)
               }
-              className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium border transition cursor-pointer ${
+              className={`flex min-h-11 flex-col items-start gap-1 rounded-panel border p-3 text-left transition-[background-color,border-color,scale] active:scale-[0.98] ${
                 active
-                  ? "bg-slate-100 text-slate-900 border-slate-300"
-                  : "bg-white text-slate-700 border-slate-300 hover:border-slate-400"
+                  ? "border-accent bg-accent-soft ring-3 ring-accent/15"
+                  : "border-line bg-surface hover:border-line-strong/60"
               }`}
             >
-              {acc.name}:{" "}
-              <span className="font-bold">
+              <span
+                className={`flex max-w-full items-center gap-1.5 text-xs ${active ? "font-medium text-accent-ink" : "text-ink-3"}`}
+              >
+                <Wallet className="size-3.5 shrink-0" aria-hidden="true" />
+                <span className="truncate">{acc.name}</span>
+              </span>
+              <span
+                className={`num text-lg font-medium ${acc.balance < -0.004 ? "text-danger-ink" : "text-ink"}`}
+              >
                 {formatMoney(acc.balance, acc.currency)}
               </span>
             </button>
@@ -514,79 +596,67 @@ export function PersonLedgerClient({
         <button
           type="button"
           onClick={() => setNewAccOpen(true)}
-          className="px-3 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-white border border-dashed border-slate-300 transition cursor-pointer"
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-panel border border-dashed border-accent-line p-3 text-sm font-medium text-accent-ink transition-colors hover:border-accent hover:bg-accent-soft"
         >
-          + Subcuenta
+          <Plus className="size-4" aria-hidden="true" />
+          Subcuenta
         </button>
       </div>
 
       {/* Pestañas si también tiene Resúmenes Mensuales */}
       {detail.monthlySummaries.length > 0 && (
-        <div className="flex gap-2 border-b border-slate-200">
-          <button
-            type="button"
-            onClick={() => setActiveTab("movimientos")}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${
-              activeTab === "movimientos"
-                ? "border-slate-900 text-slate-900"
-                : "border-transparent text-slate-600 hover:text-slate-800"
-            }`}
-          >
-            Movimientos ({activeRows.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("resumenes")}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition cursor-pointer ${
-              activeTab === "resumenes"
-                ? "border-slate-900 text-slate-900"
-                : "border-transparent text-slate-600 hover:text-slate-800"
-            }`}
-          >
-            Resúmenes de Servicios ({detail.monthlySummaries.length})
-          </button>
-        </div>
+        <Segmented
+          label="Vista de la cuenta"
+          value={activeTab}
+          onChange={setActiveTab}
+          className="max-w-full overflow-x-auto"
+          options={[
+            {
+              value: "movimientos",
+              icon: History,
+              label: `Movimientos (${activeRows.length})`,
+            },
+            {
+              value: "resumenes",
+              icon: Receipt,
+              label: `Resúmenes de servicios (${detail.monthlySummaries.length})`,
+            },
+          ]}
+        />
       )}
 
       {activeTab === "movimientos" ? (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="panel overflow-hidden">
           {/* Barra resumen dinámica de las filas filtradas */}
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-            <div className="flex flex-wrap items-center gap-3 tabular-nums">
-              <span>
-                Mostrando <strong>{filteredRows.length}</strong> de{" "}
-                {activeRows.length}
-              </span>
-              <span className="hidden sm:inline">·</span>
-              <span>
-                Entradas:{" "}
-                <strong className="text-emerald-700">
-                  {formatMoney(filteredTotals.totalIn, person.defaultCurrency)}
-                </strong>
-              </span>
-              <span className="hidden sm:inline">·</span>
-              <span>
-                Salidas:{" "}
-                <strong className="text-rose-600">
-                  {formatMoney(filteredTotals.totalOut, person.defaultCurrency)}
-                </strong>
-              </span>
+          <div className="panel-header text-xs text-ink-2">
+            <div className="flex flex-wrap items-center gap-2 tabular-nums">
+              <Tag tone="neutral">
+                {filteredRows.length} de {activeRows.length}
+              </Tag>
+              <Tag tone="success" icon={ArrowDownLeft}>
+                Entradas{" "}
+                {formatMoney(filteredTotals.totalIn, person.defaultCurrency)}
+              </Tag>
+              <Tag tone="danger" icon={ArrowUpRight}>
+                Salidas{" "}
+                {formatMoney(filteredTotals.totalOut, person.defaultCurrency)}
+              </Tag>
             </div>
 
             {hasColumnFilters && (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 cursor-pointer"
+                className="btn-ghost icon-button-danger min-h-9 px-2.5 text-xs"
               >
-                <FilterX className="w-3.5 h-3.5" />
+                <FilterX className="size-3.5" />
                 Limpiar filtros
               </button>
             )}
           </div>
 
           <div className="md:hidden">
-            <div className="space-y-3 border-b border-slate-200 p-4">
+            <div className="space-y-3 border-b border-line p-4">
               <label className="field-label">
                 Buscar movimiento
                 <input
@@ -598,7 +668,7 @@ export function PersonLedgerClient({
                 />
               </label>
               <details>
-                <summary className="min-h-11 cursor-pointer rounded-lg py-3 text-xs font-medium text-slate-600">
+                <summary className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-control py-3 text-sm font-medium text-accent-ink">
                   Filtrar movimientos
                 </summary>
                 <div className="grid gap-3 pt-2">
@@ -658,35 +728,35 @@ export function PersonLedgerClient({
                 </div>
               </details>
             </div>
-            <div className="divide-y divide-slate-200">
+            <div className="divide-y divide-line">
               {filteredRows.map((row) => (
-                <article key={row.id} className="space-y-3 p-4">
+                <article key={row.id} className="space-y-2 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="break-words text-sm font-medium">
+                      <p className="break-words text-sm font-medium text-ink">
                         {row.concept}
                       </p>
-                      <p className="mt-1 text-xs text-slate-600">
-                        {row.accountName}
-                        {row.affectsDebt && (
-                          <span className="ml-2 inline-block rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-800">
-                            Préstamo
-                          </span>
-                        )}
-                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ink-3">
+                        <TxTypeTag row={row} />
+                        <span>{row.accountName}</span>
+                      </div>
                     </div>
                     <div className="text-right tabular-nums">
-                      <p className="text-sm font-semibold">
+                      <p
+                        className={`text-sm font-medium ${row.signedAmount > 0 ? "text-success-ink" : "text-danger-ink"}`}
+                      >
                         {row.signedAmount > 0 ? "+" : "−"}
                         {formatMoney(row.amount, row.currency)}
                       </p>
-                      <p className="mt-1 text-xs text-slate-600">
+                      <p className="mt-1 text-xs text-ink-3">
                         {formatDateAR(row.date, row.dateUnknown)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-slate-600 tabular-nums">
+                    <span
+                      className={`text-xs tabular-nums ${row.runningBalance < -0.004 ? "text-danger-ink" : "text-ink-3"}`}
+                    >
                       Saldo: {formatMoney(row.runningBalance, row.currency)}
                     </span>
                     <div className="flex">
@@ -705,7 +775,7 @@ export function PersonLedgerClient({
                         type="button"
                         disabled={isPending}
                         onClick={() => handleDeleteTx(row)}
-                        className="icon-button hover:bg-rose-50 hover:text-rose-700"
+                        className="icon-button icon-button-danger"
                         aria-label={`Eliminar ${row.concept}`}
                       >
                         <Trash2 className="size-4" />
@@ -713,7 +783,7 @@ export function PersonLedgerClient({
                     </div>
                   </div>
                   {row.notes && (
-                    <p className="break-words text-xs text-slate-600">
+                    <p className="break-words text-xs text-ink-3">
                       {row.notes}
                     </p>
                   )}
@@ -722,7 +792,7 @@ export function PersonLedgerClient({
             </div>
             {filteredRows.length === 0 && (
               <div className="space-y-3 p-8 text-center">
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-ink-3">
                   {hasColumnFilters
                     ? "No hay movimientos con estos filtros."
                     : "Todavía no hay movimientos en esta cuenta."}
@@ -741,70 +811,70 @@ export function PersonLedgerClient({
             )}
           </div>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full text-sm">
+            <table className="data-table w-full text-sm">
               <caption className="sr-only">
                 Movimientos de {person.name}
               </caption>
-              <thead className="bg-slate-50 text-xs text-slate-600 border-b border-slate-200">
-                <tr className="uppercase">
-                  <th className="text-left px-4 py-2.5 font-semibold">
+              <thead>
+                <tr>
+                  <th className="text-left px-4 py-2.5 font-medium">
                     <button
                       type="button"
                       onClick={() => toggleSort("date")}
-                      className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
+                      className="inline-flex min-h-9 items-center gap-1 rounded-lg hover:text-ink cursor-pointer"
                     >
                       Fecha
-                      <ArrowUpDown className="w-3 h-3" />
+                      <ArrowUpDown className="size-3" />
                     </button>
                   </th>
-                  <th className="text-left px-4 py-2.5 font-semibold">
+                  <th className="text-left px-4 py-2.5 font-medium">
                     <button
                       type="button"
                       onClick={() => toggleSort("concept")}
-                      className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
+                      className="inline-flex min-h-9 items-center gap-1 rounded-lg hover:text-ink cursor-pointer"
                     >
                       Concepto
-                      <ArrowUpDown className="w-3 h-3" />
+                      <ArrowUpDown className="size-3" />
                     </button>
                   </th>
                   {accounts.length > 1 && selectedAccountId === "ALL" && (
-                    <th className="text-left px-3 py-2.5 font-semibold">
+                    <th className="text-left px-3 py-2.5 font-medium">
                       Cuenta
                     </th>
                   )}
-                  <th className="text-right px-4 py-2.5 font-semibold">
+                  <th className="text-right px-4 py-2.5 font-medium">
                     <button
                       type="button"
                       onClick={() => toggleSort("amount")}
-                      className="inline-flex items-center gap-1 ml-auto hover:text-slate-900 cursor-pointer"
+                      className="inline-flex min-h-9 items-center gap-1 ml-auto rounded-lg hover:text-ink cursor-pointer"
                     >
                       Entrada
-                      <ArrowUpDown className="w-3 h-3" />
+                      <ArrowUpDown className="size-3" />
                     </button>
                   </th>
-                  <th className="text-right px-4 py-2.5 font-semibold">
+                  <th className="text-right px-4 py-2.5 font-medium">
                     <button
                       type="button"
                       onClick={() => toggleSort("amount")}
-                      className="inline-flex items-center gap-1 ml-auto hover:text-slate-900 cursor-pointer"
+                      className="inline-flex min-h-9 items-center gap-1 ml-auto rounded-lg hover:text-ink cursor-pointer"
                     >
                       Salida
-                      <ArrowUpDown className="w-3 h-3" />
+                      <ArrowUpDown className="size-3" />
                     </button>
                   </th>
-                  <th className="text-right px-4 py-2.5 font-semibold">
+                  <th className="text-right px-4 py-2.5 font-medium">
                     Saldo
                   </th>
                   <th className="w-20 px-3 py-2.5"></th>
                 </tr>
 
                 {/* Fila de filtros por columna */}
-                <tr className="border-t border-slate-200/80 bg-slate-100/70">
+                <tr className="border-t border-line bg-canvas/60">
                   <th className="px-3 py-2">
                     <select
                       value={colPeriod}
                       onChange={(e) => setColPeriod(e.target.value)}
-                      className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
+                      className="w-full min-h-9 rounded-lg border border-line-strong/60 bg-surface px-2 py-1 text-xs font-normal text-ink hover:border-line-strong focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/20"
                     >
                       <option value="">Todo período</option>
                       {availableYearMonths.map((ym) => (
@@ -823,7 +893,7 @@ export function PersonLedgerClient({
                       value={colConcept}
                       onChange={(e) => setColConcept(e.target.value)}
                       placeholder="Filtrar concepto o nota..."
-                      className="w-full min-w-36 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400"
+                      className="w-full min-h-9 rounded-lg border border-line-strong/60 bg-surface px-2 py-1 text-xs font-normal text-ink hover:border-line-strong focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/20 min-w-36 placeholder:text-ink-3"
                     />
                   </th>
                   {accounts.length > 1 && selectedAccountId === "ALL" && (
@@ -841,7 +911,7 @@ export function PersonLedgerClient({
                               : Number(e.target.value),
                           )
                         }
-                        className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
+                        className="w-full min-h-9 rounded-lg border border-line-strong/60 bg-surface px-2 py-1 text-xs font-normal text-ink hover:border-line-strong focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/20"
                       >
                         <option value="ALL">Todas</option>
                         {accounts.map((a) => (
@@ -865,7 +935,7 @@ export function PersonLedgerClient({
                             | "TRANSFER",
                         )
                       }
-                      className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
+                      className="w-full min-h-9 rounded-lg border border-line-strong/60 bg-surface px-2 py-1 text-xs font-normal text-ink hover:border-line-strong focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/20"
                     >
                       <option value="ALL">Todos los tipos</option>
                       <option value="IN_ONLY">Solo Entradas (+)</option>
@@ -881,7 +951,7 @@ export function PersonLedgerClient({
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-200 tabular-nums">
+              <tbody className="tabular-nums">
                 {filteredRows.length === 0 ? (
                   <tr>
                     <td
@@ -890,7 +960,7 @@ export function PersonLedgerClient({
                           ? 7
                           : 6
                       }
-                      className="py-10 text-center text-slate-600"
+                      className="py-10 text-center text-ink-3"
                     >
                       Sin movimientos para los filtros seleccionados
                     </td>
@@ -900,36 +970,24 @@ export function PersonLedgerClient({
                     const isPositive = row.signedAmount > 0;
                     const negRun = row.runningBalance < -0.004;
                     return (
-                      <tr
-                        key={row.id}
-                        className="hover:bg-slate-50/80 transition"
-                      >
-                        <td className="px-4 py-3 whitespace-nowrap text-slate-600 text-xs sm:text-sm">
+                      <tr key={row.id}>
+                        <td className="px-4 py-3 whitespace-nowrap text-ink-3 text-xs sm:text-sm">
                           {formatDateAR(row.date, row.dateUnknown)}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="font-medium text-slate-900">
+                          <div className="font-medium text-ink">
                             {row.concept}
                           </div>
-                          <div className="flex flex-wrap gap-2 mt-0.5">
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <TxTypeTag row={row} />
                             {row.refAmount && row.refCurrency && (
-                              <span className="text-xs text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                              <Tag tone="neutral">
                                 Ref:{" "}
                                 {formatMoney(row.refAmount, row.refCurrency)}
-                              </span>
-                            )}
-                            {row.type === "YIELD" && (
-                              <span className="text-[0.6875rem] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                                Rendimiento
-                              </span>
-                            )}
-                            {row.affectsDebt && (
-                              <span className="text-[0.6875rem] text-indigo-800 bg-indigo-50 px-1.5 py-0.5 rounded">
-                                Préstamo
-                              </span>
+                              </Tag>
                             )}
                             {row.notes && (
-                              <span className="text-xs text-slate-600 truncate max-w-xs">
+                              <span className="text-xs text-ink-3 truncate max-w-xs">
                                 {row.notes}
                               </span>
                             )}
@@ -937,24 +995,28 @@ export function PersonLedgerClient({
                         </td>
                         {accounts.length > 1 && selectedAccountId === "ALL" && (
                           <td className="px-3 py-3 whitespace-nowrap">
-                            <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium">
+                            <Tag tone="neutral" icon={Wallet}>
                               {row.accountName}
-                            </span>
+                            </Tag>
                           </td>
                         )}
-                        <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600">
+                        <td
+                          className={`px-4 py-3 text-right whitespace-nowrap font-medium ${isPositive ? "text-success-ink" : "text-ink-3"}`}
+                        >
                           {isPositive
                             ? formatMoney(row.amount, row.currency)
                             : "—"}
                         </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-rose-600">
+                        <td
+                          className={`px-4 py-3 text-right whitespace-nowrap font-medium ${!isPositive ? "text-danger-ink" : "text-ink-3"}`}
+                        >
                           {!isPositive
                             ? formatMoney(row.amount, row.currency)
                             : "—"}
                         </td>
                         <td
-                          className={`px-4 py-3 text-right whitespace-nowrap font-semibold ${
-                            negRun ? "text-rose-600" : "text-slate-800"
+                          className={`px-4 py-3 text-right whitespace-nowrap font-medium ${
+                            negRun ? "text-danger-ink" : "text-ink"
                           }`}
                         >
                           {formatMoney(row.runningBalance, row.currency)}
@@ -970,7 +1032,7 @@ export function PersonLedgerClient({
                                 disabled={isPending}
                                 className="icon-button"
                               >
-                                <Pencil className="w-3.5 h-3.5" />
+                                <Pencil className="size-4" />
                               </button>
                             )}
                             <button
@@ -979,9 +1041,9 @@ export function PersonLedgerClient({
                               disabled={isPending}
                               title="Eliminar"
                               aria-label={`Eliminar ${row.concept}`}
-                              className="icon-button hover:text-rose-700 hover:bg-rose-50"
+                              className="icon-button icon-button-danger"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="size-4" />
                             </button>
                           </div>
                         </td>
@@ -996,40 +1058,39 @@ export function PersonLedgerClient({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 tabular-nums">
           {detail.monthlySummaries.map((grp) => (
-            <div
-              key={grp.period}
-              className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3"
-            >
-              <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
-                <div>
-                  <h3 className="font-bold text-slate-900">
+            <div key={grp.period} className="panel">
+              <div className="panel-header">
+                <div className="min-w-0">
+                  <h3 className="panel-title">
+                    <CalendarDays className="size-4 text-ink-3" aria-hidden="true" />
                     {formatPeriodLabel(grp.period)}
                   </h3>
-                  <p className="text-xs text-slate-600">
-                    {grp.unsettledTotal > 0
-                      ? `Pendiente de descontar: ${formatMoney(grp.unsettledTotal, "ARS")}`
-                      : "Descontado en cuenta"}
-                  </p>
+                  <div className="mt-1.5">
+                    {grp.unsettledTotal > 0 ? (
+                      <Tag tone="warning" icon={Clock3}>
+                        Por descontar{" "}
+                        {formatMoney(grp.unsettledTotal, "ARS")}
+                      </Tag>
+                    ) : (
+                      <SettledTag>Descontado en cuenta</SettledTag>
+                    )}
+                  </div>
                 </div>
-                <span className="text-lg font-bold text-slate-900">
+                <span className="num text-lg font-medium text-ink">
                   {formatMoney(grp.total, "ARS")}
                 </span>
               </div>
-              <div className="space-y-1.5 text-sm">
+              <div className="divide-y divide-line px-4 text-sm sm:px-5">
                 {grp.items.map((it) => (
                   <div
                     key={it.id}
-                    className="flex items-center justify-between text-slate-700"
+                    className="flex items-center justify-between gap-3 py-2 text-ink-2"
                   >
-                    <span className="truncate">
-                      {it.concept}
-                      {it.kind === "EXTRA" && (
-                        <span className="ml-1.5 text-[0.625rem] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">
-                          Extra
-                        </span>
-                      )}
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate">{it.concept}</span>
+                      {it.kind === "EXTRA" && <Tag tone="orange">Extra</Tag>}
                     </span>
-                    <span className="font-medium">
+                    <span className="font-medium text-ink">
                       {formatMoney(it.amount, "ARS")}
                     </span>
                   </div>
@@ -1054,7 +1115,7 @@ export function PersonLedgerClient({
             <div className="flex items-center justify-between">
               <h3
                 id="transaction-title"
-                className="text-base font-semibold text-slate-900"
+                className="font-display text-lg font-medium text-ink"
               >
                 {editingTx
                   ? "Editar movimiento"
@@ -1066,12 +1127,12 @@ export function PersonLedgerClient({
                 aria-label="Cerrar formulario de movimiento"
                 className="icon-button"
               >
-                <X className="w-5 h-5" />
+                <X className="size-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveTx} className="space-y-3.5">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+              <div role="group" aria-label="Tipo de movimiento" className="segmented grid w-full grid-cols-2 sm:grid-cols-4">
                 {(
                   [
                     ["IN", "Ingreso"],
@@ -1085,11 +1146,16 @@ export function PersonLedgerClient({
                   <button
                     key={val}
                     type="button"
+                    aria-pressed={txType === val}
                     onClick={() => setTxType(val)}
-                    className={`py-2 rounded-lg transition cursor-pointer ${
-                      txType === val
-                        ? "bg-white text-slate-900 shadow-xs"
-                        : "text-slate-600 hover:text-slate-900"
+                    className={`segmented-item ${
+                      txType !== val
+                        ? ""
+                        : val === "OUT"
+                          ? "!text-danger-ink"
+                          : val === "TRANSFER"
+                            ? "!text-accent-ink"
+                            : "!text-success-ink"
                     }`}
                   >
                     {label}
@@ -1100,13 +1166,13 @@ export function PersonLedgerClient({
               {(accounts.length > 1 || txType === "TRANSFER") && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                    <label className="field-label">
                       {txType === "TRANSFER" ? "Desde cuenta" : "Cuenta"}
                     </label>
                     <select
                       value={txAccountId}
                       onChange={(e) => setTxAccountId(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
+                      className="field"
                     >
                       {accounts.map((a) => (
                         <option key={a.id} value={a.id}>
@@ -1117,7 +1183,7 @@ export function PersonLedgerClient({
                   </div>
                   {txType === "TRANSFER" && (
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                      <label className="field-label">
                         Hacia cuenta
                       </label>
                       <select
@@ -1125,7 +1191,7 @@ export function PersonLedgerClient({
                         onChange={(e) =>
                           setTxToAccountId(Number(e.target.value))
                         }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
+                        className="field"
                       >
                         <optgroup label={`Cuentas de ${person.name}`}>
                           {accounts.map((a) => (
@@ -1153,14 +1219,14 @@ export function PersonLedgerClient({
               )}
 
               {transferTargetPerson && (
-                <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="space-y-2 rounded-panel border border-iris-line bg-iris-soft/60 p-3">
                   <ToggleSwitch
                     checked={txAffectsDebt}
                     onChange={setTxAffectsDebt}
                     activeColor="indigo"
                     label="Es préstamo / devolución (cuenta para la deuda)"
                   />
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-ink-2">
                     {txAffectsDebt
                       ? `${transferTargetPerson.name} le va a deber este monto a ${person.name} (o se descuenta de lo que ${person.name} le debe).`
                       : "Sin marcar, la transferencia no genera deuda (por ejemplo, un regalo o un reacomodo)."}
@@ -1170,7 +1236,7 @@ export function PersonLedgerClient({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                  <label className="field-label">
                     Fecha
                   </label>
                   <input
@@ -1178,11 +1244,11 @@ export function PersonLedgerClient({
                     value={txDate}
                     onChange={(e) => setTxDate(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                    className="field"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                  <label className="field-label">
                     Monto ({person.defaultCurrency})
                   </label>
                   <MoneyInput
@@ -1196,7 +1262,7 @@ export function PersonLedgerClient({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
+                <label className="field-label">
                   Concepto
                 </label>
                 <input
@@ -1205,14 +1271,14 @@ export function PersonLedgerClient({
                   onChange={(e) => setTxConcept(e.target.value)}
                   placeholder="Ej: Transferencia, Seguro Zurich, Regalo..."
                   required
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                  className="field"
                 />
               </div>
 
               {txType !== "TRANSFER" && (
-                <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                <div className="grid grid-cols-3 gap-2 rounded-panel border border-line bg-subtle p-3">
                   <div className="col-span-2">
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                    <label className="field-label">
                       Monto original otra moneda (opcional)
                     </label>
                     <MoneyInput
@@ -1223,13 +1289,13 @@ export function PersonLedgerClient({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                    <label className="field-label">
                       Moneda ref.
                     </label>
                     <select
                       value={txRefCurrency}
                       onChange={(e) => setTxRefCurrency(e.target.value)}
-                      className="w-full px-2 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold"
+                      className="field px-2 font-medium"
                     >
                       <option value="USD">USD</option>
                       <option value="ARS">ARS</option>
@@ -1239,7 +1305,7 @@ export function PersonLedgerClient({
               )}
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
+                <label className="field-label">
                   Nota adicional (opcional)
                 </label>
                 <input
@@ -1247,14 +1313,14 @@ export function PersonLedgerClient({
                   value={txNotes}
                   onChange={(e) => setTxNotes(e.target.value)}
                   placeholder="Detalle opcional..."
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                  className="field"
                 />
               </div>
 
               {formError && (
                 <p
                   role="alert"
-                  className="text-xs text-rose-600 bg-rose-50 px-3 py-2 rounded-lg"
+                  className="alert alert-danger py-2.5 text-xs"
                 >
                   {formError}
                 </p>
@@ -1264,14 +1330,14 @@ export function PersonLedgerClient({
                 <button
                   type="button"
                   onClick={() => setTxModalOpen(false)}
-                  className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="btn-ghost"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
+                  className="btn-primary"
                 >
                   {isPending ? "Guardando..." : "Guardar"}
                 </button>
@@ -1295,7 +1361,7 @@ export function PersonLedgerClient({
             <div className="flex items-center justify-between">
               <h3
                 id="share-title"
-                className="text-base font-semibold text-slate-900"
+                className="font-display text-lg font-medium text-ink"
               >
                 Acceso Familiar · {person.name}
               </h3>
@@ -1305,11 +1371,11 @@ export function PersonLedgerClient({
                 aria-label="Cerrar acceso familiar"
                 className="icon-button"
               >
-                <X className="w-5 h-5" />
+                <X className="size-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-ink-2">
               Con este enlace privado, {person.name} puede consultar su saldo,
               subcuentas, movimientos y boletas en{" "}
               <strong>modo solo lectura</strong> sin ver cuentas de nadie más.
@@ -1323,7 +1389,7 @@ export function PersonLedgerClient({
 
             {shareEnabled && shareUrl && (
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-slate-600">
+                <label className="field-label">
                   Link para compartir por WhatsApp
                 </label>
                 <div className="flex gap-2">
@@ -1331,7 +1397,8 @@ export function PersonLedgerClient({
                     type="text"
                     readOnly
                     value={shareUrl}
-                    className="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-xs text-slate-700"
+                    aria-label="Link para compartir"
+                    className="field flex-1 bg-subtle text-xs text-ink-2"
                   />
                   <button
                     type="button"
@@ -1340,12 +1407,12 @@ export function PersonLedgerClient({
                       setCopied(true);
                       setTimeout(() => setCopied(false), 2000);
                     }}
-                    className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-medium cursor-pointer"
+                    className="btn-secondary px-3"
                   >
                     {copied ? (
-                      <Check className="w-3.5 h-3.5" />
+                      <Check className="size-4 text-success" />
                     ) : (
-                      <Copy className="w-3.5 h-3.5" />
+                      <Copy className="size-4" />
                     )}
                     {copied ? "Copiado" : "Copiar"}
                   </button>
@@ -1354,7 +1421,7 @@ export function PersonLedgerClient({
             )}
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
+              <label className="field-label">
                 Contraseña de acceso (opcional; sirve para entrar por /login o
                 con el link)
               </label>
@@ -1363,7 +1430,7 @@ export function PersonLedgerClient({
                 value={sharePin}
                 onChange={(e) => setSharePin(e.target.value)}
                 placeholder="Ej: mama2026 o 1234"
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                className="field"
               />
             </div>
 
@@ -1372,16 +1439,16 @@ export function PersonLedgerClient({
                 type="button"
                 onClick={() => handleSaveShare(true)}
                 disabled={isPending}
-                className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-rose-600 cursor-pointer"
+                className="btn-ghost icon-button-danger px-3 text-xs"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw className="size-3.5" />
                 Regenerar link
               </button>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShareOpen(false)}
-                  className="px-3.5 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="btn-ghost"
                 >
                   Cerrar
                 </button>
@@ -1392,7 +1459,7 @@ export function PersonLedgerClient({
                     handleSaveShare(false);
                     setShareOpen(false);
                   }}
-                  className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                  className="btn-primary"
                 >
                   Guardar
                 </button>
@@ -1414,7 +1481,7 @@ export function PersonLedgerClient({
               <div className="flex items-center justify-between">
                 <h3
                   id="account-title"
-                  className="text-base font-semibold text-slate-900"
+                  className="font-display text-lg font-medium text-ink"
                 >
                   Nueva subcuenta · {person.name}
                 </h3>
@@ -1424,11 +1491,11 @@ export function PersonLedgerClient({
                   aria-label="Cerrar nueva subcuenta"
                   className="icon-button"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="size-4" />
                 </button>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
+                <label className="field-label">
                   Nombre (ej: Mercado Pago, Banco Galicia, Invertido)
                 </label>
                 <input
@@ -1437,11 +1504,11 @@ export function PersonLedgerClient({
                   autoFocus
                   value={newAccName}
                   onChange={(e) => setNewAccName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                  className="field"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
+                <label className="field-label">
                   Saldo inicial ({person.defaultCurrency})
                 </label>
                 <MoneyInput
@@ -1454,14 +1521,14 @@ export function PersonLedgerClient({
                 <button
                   type="button"
                   onClick={() => setNewAccOpen(false)}
-                  className="min-h-11 px-3.5 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="btn-ghost"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                  className="btn-primary"
                 >
                   Crear
                 </button>

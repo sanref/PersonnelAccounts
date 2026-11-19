@@ -21,6 +21,7 @@ import {
   updateNotificationSettingsAction,
 } from "@/app/actions";
 import { ToggleSwitch } from "@/components/ui-controls";
+import { Tag } from "@/components/cui";
 import {
   getActivePushEndpoint,
   isPushSupportedInBrowser,
@@ -179,19 +180,19 @@ export function NotificationSettingsCard({
       : `/api/cron/notifications?key=${settings.cronSecret}`;
 
   return (
-    <section
-      id="notificaciones"
-      className="panel p-4 sm:p-6 space-y-6 scroll-mt-36"
-    >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
-            <Bell className="w-5 h-5 text-slate-900" />
-            <h2 className="text-base font-medium text-slate-900">
-              Notificaciones de vencimientos
-            </h2>
-          </div>
-          <p className="text-xs text-slate-600">
+    <section id="notificaciones" className="panel scroll-mt-36">
+      <div className="panel-header">
+        <div className="min-w-0">
+          <h2 className="panel-title">
+            <Bell className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+            Notificaciones de vencimientos
+            {enabled ? (
+              <Tag tone="success">Activas</Tag>
+            ) : (
+              <Tag tone="neutral">Pausadas</Tag>
+            )}
+          </h2>
+          <p className="mt-0.5 text-xs text-ink-3">
             Toma las fechas de vencimiento de tus servicios mensuales pendientes y te avisa
             a la hora elegida (hora de Argentina).
           </p>
@@ -204,243 +205,242 @@ export function NotificationSettingsCard({
         />
       </div>
 
-      <form onSubmit={handleSavePreferences} className="space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Hora de notificación */}
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-1.5">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-              <Clock className="w-3.5 h-3.5 text-slate-500" />
-              Hora de notificación
-            </label>
-            <input
-              type="time"
-              required
-              value={notifyTime}
-              onChange={(e) => setNotifyTime(e.target.value)}
-              className="w-full min-h-11 px-3 py-2 rounded-lg border border-slate-300 bg-white text-base font-semibold text-slate-900 tabular-nums"
-            />
-            <p className="text-xs text-slate-600">
-              Huso horario: Argentina (GMT-3)
-            </p>
+      <div className="space-y-6 p-4 sm:p-5">
+        <form onSubmit={handleSavePreferences} className="space-y-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Hora de notificación */}
+            <div className="space-y-1.5 rounded-panel border border-line bg-subtle p-4">
+              <label htmlFor="notif-time" className="field-label flex items-center gap-1.5">
+                <Clock className="size-3.5 text-ink-3" aria-hidden="true" />
+                Hora de notificación
+              </label>
+              <input
+                id="notif-time"
+                type="time"
+                required
+                value={notifyTime}
+                onChange={(e) => setNotifyTime(e.target.value)}
+                className="field text-base font-medium tabular-nums"
+              />
+              <p className="text-xs text-ink-3">Huso horario: Argentina (GMT-3)</p>
+            </div>
+
+            {/* Días de anticipación */}
+            <div className="space-y-1.5 rounded-panel border border-line bg-subtle p-4">
+              <label htmlFor="notif-days" className="field-label">
+                Anticipación antes del vencimiento
+              </label>
+              <select
+                id="notif-days"
+                value={daysBefore}
+                onChange={(e) => setDaysBefore(e.target.value)}
+                className="field"
+              >
+                <option value="0">Sin anticipación (solo el día que vence)</option>
+                <option value="1">1 día antes</option>
+                <option value="2">2 días antes</option>
+                <option value="3">3 días antes (Recomendado)</option>
+                <option value="5">5 días antes</option>
+                <option value="7">7 días antes</option>
+                <option value="10">10 días antes</option>
+              </select>
+              <p className="text-xs text-ink-3">
+                Solo avisa si el servicio sigue como Pendiente.
+              </p>
+            </div>
+
+            {/* Reglas adicionales */}
+            <div className="flex flex-col justify-center gap-1 rounded-panel border border-line bg-subtle p-4">
+              <ToggleSwitch
+                checked={notifyOnDueDay}
+                onChange={setNotifyOnDueDay}
+                label="Avisar el mismo día que vence"
+              />
+              <ToggleSwitch
+                checked={notifyOverdue}
+                onChange={setNotifyOverdue}
+                activeColor="indigo"
+                label="Repetir si quedó vencido sin pagar"
+              />
+            </div>
           </div>
 
-          {/* Días de anticipación */}
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-1.5">
-            <label className="block text-xs font-semibold text-slate-700">
-              Anticipación antes del vencimiento
-            </label>
-            <select
-              value={daysBefore}
-              onChange={(e) => setDaysBefore(e.target.value)}
-              className="w-full min-h-11 px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-900"
-            >
-              <option value="0">Sin anticipación (solo el día que vence)</option>
-              <option value="1">1 día antes</option>
-              <option value="2">2 días antes</option>
-              <option value="3">3 días antes (Recomendado)</option>
-              <option value="5">5 días antes</option>
-              <option value="7">7 días antes</option>
-              <option value="10">10 días antes</option>
-            </select>
-            <p className="text-xs text-slate-600">
-              Solo avisa si el servicio sigue como Pendiente.
-            </p>
-          </div>
-
-          {/* Reglas adicionales */}
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 flex flex-col justify-center gap-2.5">
-            <ToggleSwitch
-              checked={notifyOnDueDay}
-              onChange={setNotifyOnDueDay}
-              label="Avisar el mismo día que vence"
-            />
-            <ToggleSwitch
-              checked={notifyOverdue}
-              onChange={setNotifyOverdue}
-              activeColor="indigo"
-              label="Repetir si quedó vencido sin pagar"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <button
-            type="submit"
-            disabled={isPending}
-            className="inline-flex items-center gap-2 min-h-11 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition cursor-pointer"
-          >
-            {savedOk ? (
-              <>
-                <Check className="w-4 h-4 text-emerald-400" />
-                Preferencias guardadas
-              </>
-            ) : (
-              "Guardar horario y preferencias"
-            )}
-          </button>
-        </div>
-      </form>
-
-      {/* Dispositivos Push vinculados */}
-      <div className="pt-4 border-t border-slate-200 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-              <Smartphone className="w-4 h-4 text-slate-600" />
-              Dispositivos que reciben Push ({devices.length})
-            </h3>
-            <p className="text-xs text-slate-600">
-              Activá este botón en tu celular (idealmente desde la PWA instalada) y en tu PC.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {pushSupported ? (
-              isCurrentDeviceSubscribed ? (
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={handleUnsubscribeThisDevice}
-                  className="inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 cursor-pointer"
-                >
-                  <BellOff className="w-4 h-4" />
-                  Desactivar en este equipo
-                </button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button type="submit" disabled={isPending} className="btn-primary">
+              {savedOk ? (
+                <>
+                  <Check className="size-4" />
+                  Preferencias guardadas
+                </>
               ) : (
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={handleSubscribeThisDevice}
-                  className="inline-flex items-center gap-1.5 min-h-11 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 cursor-pointer"
-                >
-                  <BellRing className="w-4 h-4" />
-                  Activar Push en este equipo
-                </button>
-              )
-            ) : (
-              <span className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                Para Push en iPhone: abrí en Safari → Compartir → Agregar a inicio.
-              </span>
-            )}
-
-            <button
-              type="button"
-              disabled={isPending || devices.length === 0}
-              onClick={handleSendTest}
-              className="inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
-            >
-              <Send className="w-3.5 h-3.5" />
-              Probar aviso
-            </button>
-
-            <button
-              type="button"
-              disabled={isPending || devices.length === 0}
-              onClick={handleSendPendingSummaryNow}
-              className="inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
-            >
-              Enviar pendientes ahora
+                "Guardar horario y preferencias"
+              )}
             </button>
           </div>
-        </div>
+        </form>
 
-        {feedback && (
-          <p
-            className={`text-xs px-3.5 py-2.5 rounded-xl border ${
-              feedback.type === "ok"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                : "bg-rose-50 border-rose-200 text-rose-700"
-            }`}
-          >
-            {feedback.text}
-          </p>
-        )}
+        {/* Dispositivos Push vinculados */}
+        <div className="space-y-4 border-t border-line pt-5">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-medium text-ink">
+                <Smartphone className="size-4 text-ink-3" aria-hidden="true" />
+                Dispositivos que reciben Push
+                <Tag tone={devices.length > 0 ? "accent" : "neutral"}>
+                  {devices.length}
+                </Tag>
+              </h3>
+              <p className="mt-0.5 text-xs text-ink-3">
+                Activá este botón en tu celular (idealmente desde la PWA instalada) y en tu PC.
+              </p>
+            </div>
 
-        {devices.length > 0 && (
-          <div className="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden text-xs">
-            {devices.map((dev) => {
-              const isThisOne = dev.endpoint === localEndpoint;
-              return (
-                <div
-                  key={dev.id}
-                  className="px-3.5 py-2.5 flex items-center justify-between gap-2 bg-white"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-semibold text-slate-800 truncate">
-                      {dev.deviceLabel}
-                    </span>
-                    {isThisOne && (
-                      <span className="text-[0.6875rem] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">
-                        Este dispositivo
-                      </span>
-                    )}
-                  </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {pushSupported ? (
+                isCurrentDeviceSubscribed ? (
                   <button
                     type="button"
-                    title="Eliminar dispositivo"
-                    onClick={() =>
-                      startTransition(async () => {
-                        if (isThisOne) {
-                          await unsubscribeCurrentDeviceFromPush();
-                          setLocalEndpoint(null);
-                        } else {
-                          await deletePushSubscriptionAction({ id: dev.id });
-                        }
-                        router.refresh();
-                      })
-                    }
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                    disabled={isPending}
+                    onClick={handleUnsubscribeThisDevice}
+                    className="btn-secondary"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <BellOff className="size-4" />
+                    Desactivar en este equipo
                   </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={handleSubscribeThisDevice}
+                    className="btn-primary"
+                  >
+                    <BellRing className="size-4" />
+                    Activar Push en este equipo
+                  </button>
+                )
+              ) : (
+                <span className="alert alert-warning p-3 text-xs">
+                  Para Push en iPhone: abrí en Safari → Compartir → Agregar a inicio.
+                </span>
+              )}
 
-        <details className="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 border border-slate-200/70">
-          <summary className="font-semibold text-slate-700 cursor-pointer select-none">
-            Opcional: disparo puntual exacto con la app cerrada en Vercel Gratis
-          </summary>
-          <div className="mt-2 space-y-2">
-            <p>
-              El plan gratuito de Vercel ejecuta su tarea programada una vez al día (9:00 hs
-              Argentina) y además la app chequea el horario automáticamente al abrirse. Si
-              querés que dispare al minuto exacto de cualquier hora que elijas incluso con el
-              celular bloqueado, podés pegar este enlace en{" "}
-              <a
-                href="https://cron-job.org"
-                target="_blank"
-                rel="noreferrer"
-                className="underline font-medium text-slate-800"
-              >
-                cron-job.org
-              </a>{" "}
-              (gratis, cada 15 minutos):
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                readOnly
-                value={cronUrl}
-                className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-600 text-[0.6875rem]"
-              />
               <button
                 type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(cronUrl);
-                  setCopiedCron(true);
-                  setTimeout(() => setCopiedCron(false), 2000);
-                }}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium cursor-pointer"
+                disabled={isPending || devices.length === 0}
+                onClick={handleSendTest}
+                className="btn-secondary"
               >
-                {copiedCron ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedCron ? "Copiado" : "Copiar"}
+                <Send className="size-4" />
+                Probar aviso
+              </button>
+
+              <button
+                type="button"
+                disabled={isPending || devices.length === 0}
+                onClick={handleSendPendingSummaryNow}
+                className="btn-secondary"
+              >
+                Enviar pendientes ahora
               </button>
             </div>
           </div>
-        </details>
+
+          {feedback && (
+            <div
+              role={feedback.type === "ok" ? "status" : "alert"}
+              className={`alert cui-pop ${
+                feedback.type === "ok" ? "alert-success" : "alert-danger"
+              }`}
+            >
+              <p className="text-ink">{feedback.text}</p>
+            </div>
+          )}
+
+          {devices.length > 0 && (
+            <div className="divide-y divide-line overflow-hidden rounded-panel border border-line text-sm">
+              {devices.map((dev) => {
+                const isThisOne = dev.endpoint === localEndpoint;
+                return (
+                  <div
+                    key={dev.id}
+                    className="flex items-center justify-between gap-2 bg-surface px-3.5 py-1.5"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Smartphone className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+                      <span className="truncate font-medium text-ink">
+                        {dev.deviceLabel}
+                      </span>
+                      {isThisOne && <Tag tone="success">Este dispositivo</Tag>}
+                    </div>
+                    <button
+                      type="button"
+                      title="Eliminar dispositivo"
+                      aria-label={`Eliminar dispositivo ${dev.deviceLabel}`}
+                      onClick={() =>
+                        startTransition(async () => {
+                          if (isThisOne) {
+                            await unsubscribeCurrentDeviceFromPush();
+                            setLocalEndpoint(null);
+                          } else {
+                            await deletePushSubscriptionAction({ id: dev.id });
+                          }
+                          router.refresh();
+                        })
+                      }
+                      className="icon-button icon-button-danger"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <details className="rounded-panel border border-line bg-subtle p-3 text-xs text-ink-2">
+            <summary className="min-h-9 cursor-pointer select-none content-center font-medium text-ink">
+              Opcional: disparo puntual exacto con la app cerrada en Vercel Gratis
+            </summary>
+            <div className="mt-2 space-y-2">
+              <p>
+                El plan gratuito de Vercel ejecuta su tarea programada una vez al día (9:00 hs
+                Argentina) y además la app chequea el horario automáticamente al abrirse. Si
+                querés que dispare al minuto exacto de cualquier hora que elijas incluso con el
+                celular bloqueado, podés pegar este enlace en{" "}
+                <a
+                  href="https://cron-job.org"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-accent-ink underline underline-offset-2"
+                >
+                  cron-job.org
+                </a>{" "}
+                (gratis, cada 15 minutos):
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  aria-label="URL del cron"
+                  value={cronUrl}
+                  className="field min-h-10 flex-1 font-mono text-[0.6875rem] text-ink-2"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(cronUrl);
+                    setCopiedCron(true);
+                    setTimeout(() => setCopiedCron(false), 2000);
+                  }}
+                  className="btn-secondary min-h-10 px-3"
+                >
+                  {copiedCron ? <Check className="size-4" /> : <Copy className="size-4" />}
+                  {copiedCron ? "Copiado" : "Copiar"}
+                </button>
+              </div>
+            </div>
+          </details>
+        </div>
       </div>
     </section>
   );

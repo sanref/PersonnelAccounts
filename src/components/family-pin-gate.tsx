@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import { verifyFamilyPinAction } from "@/app/actions";
 import { FontSizeControl } from "@/components/font-size-control";
+import { Avatar } from "@/components/cui";
 
 export function FamilyPinGate({
   personName,
@@ -32,19 +33,22 @@ export function FamilyPinGate({
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-canvas p-4">
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl border border-slate-200 p-6 max-w-sm w-full space-y-4 shadow-sm"
+        className="panel cui-pop w-full max-w-sm space-y-5 p-6"
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 shrink-0 rounded-xl bg-slate-900 text-white flex items-center justify-center">
-              <Lock className="w-4 h-4" />
-            </div>
-            <div>
-              <h1 className="font-bold text-slate-900">Cuenta de {personName}</h1>
-              <p className="text-xs text-slate-500">Ingresá tu contraseña para ver el resumen</p>
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar name={personName} size="lg" />
+            <div className="min-w-0">
+              <h1 className="font-display text-lg font-medium text-ink">
+                Cuenta de {personName}
+              </h1>
+              <p className="flex items-center gap-1.5 text-xs text-ink-3">
+                <Lock className="size-3.5 shrink-0" aria-hidden="true" />
+                Ingresá tu contraseña para ver el resumen
+              </p>
             </div>
           </div>
           <FontSizeControl variant="inline" />
@@ -57,20 +61,17 @@ export function FamilyPinGate({
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           placeholder="Contraseña..."
-          className="w-full min-h-11 px-3.5 py-2.5 rounded-xl border border-slate-300 text-center text-base"
+          aria-label="Contraseña"
+          className="field text-center text-base"
         />
 
         {error && (
-          <p className="text-xs text-rose-600 bg-rose-50 px-3 py-2 rounded-lg text-center">
+          <p role="alert" className="alert alert-danger justify-center py-2.5 text-xs">
             {error}
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-full min-h-11 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 cursor-pointer"
-        >
+        <button type="submit" disabled={isPending} className="btn-primary w-full">
           {isPending ? "Verificando..." : "Ver resumen"}
         </button>
       </form>

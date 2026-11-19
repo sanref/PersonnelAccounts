@@ -38,7 +38,7 @@ export function Modal({
         event.preventDefault();
         if (!busy) onClose();
       }}
-      className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-xl backdrop:bg-slate-900/35"
+      className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto overscroll-contain rounded-surface border border-line bg-surface p-0 text-ink shadow-float backdrop:bg-ink/30"
     >
       {children}
     </dialog>

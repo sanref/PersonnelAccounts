@@ -16,7 +16,7 @@ export default async function AdminLayout({
 
   const managedLinks = allPeople
     .filter((p) => p.hasManagedAccount)
-    .map((p) => ({ slug: p.slug, name: p.name }));
+    .map((p) => ({ id: p.id, slug: p.slug, name: p.name }));
 
   return (
     <div className="min-h-screen flex flex-col pb-32 md:pb-8">
@@ -27,9 +27,11 @@ export default async function AdminLayout({
       />
       <main
         id="main-content"
-        className="flex-1 min-w-0 max-w-7xl w-full mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
+        className="flex-1 min-w-0 w-full lg:pl-64"
       >
-        {children}
+        <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:pb-8 lg:pt-0">
+          {children}
+        </div>
       </main>
     </div>
   );

@@ -7,9 +7,7 @@ import {
   ChevronRight,
   ChevronDown,
   Plus,
-  Sparkles,
-  CheckCircle2,
-  Circle,
+  ListPlus,
   Trash2,
   ArrowDownToLine,
   ArrowUpDown,
@@ -20,6 +18,11 @@ import {
   SlidersHorizontal,
   CalendarDays,
   Info,
+  Receipt,
+  CircleDollarSign,
+  Clock3,
+  FileClock,
+  CheckCircle2,
 } from "lucide-react";
 import type { PersonCardSummary } from "@/lib/queries";
 import {
@@ -47,6 +50,16 @@ import {
 import { FeedbackBanner, EmptyState } from "@/components/ui-feedback";
 import { PaymentMobileCard } from "@/components/payment-mobile-card";
 import { Modal } from "@/components/modal";
+import {
+  Avatar,
+  CarryOverTag,
+  PaidTag,
+  PendingTag,
+  ProgressBar,
+  SettledTag,
+  Stat,
+  Tag,
+} from "@/components/cui";
 
 export interface MonthlyItemRow {
   id: number;
@@ -510,9 +523,8 @@ export function MonthlyPaymentsClient({
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <p className="eyebrow hidden sm:block">Organizá tus vencimientos</p>
           <h1 className="page-title">Pagos mensuales</h1>
-          <p className="hidden text-sm text-slate-600 sm:block">
+          <p className="hidden text-sm text-ink-2 sm:block">
             Servicios, gastos y descuentos en un solo lugar.
           </p>
         </div>
@@ -529,28 +541,43 @@ export function MonthlyPaymentsClient({
       </div>
       {/* El resumen siempre corresponde al mes; los arrastres y filtros se detallan abajo. */}
       <details className="panel group sm:hidden">
-        <summary className="flex min-h-14 cursor-pointer list-none flex-wrap items-center justify-between gap-2 rounded-2xl px-4 py-3">
-          <span className="text-xs text-slate-600">Pendiente del mes</span>
-          <span className="ml-auto text-right text-base font-semibold tabular-nums">
-            {formatMoney(monthTotal - monthPaid, "ARS")}
+        <summary className="flex min-h-14 cursor-pointer list-none flex-col gap-2 rounded-surface px-4 py-3">
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-sm text-ink-2">
+              <Clock3 className="size-4 text-ink-3" aria-hidden="true" />
+              Pendiente del mes
+            </span>
+            <span className="ml-auto flex items-center gap-2">
+              <span
+                className={`num text-right text-lg font-medium ${monthTotal - monthPaid > 0.004 ? "text-warning-ink" : ""}`}
+              >
+                {formatMoney(monthTotal - monthPaid, "ARS")}
+              </span>
+              <ChevronDown className="size-4 text-ink-3 transition-transform group-open:rotate-180" />
+            </span>
           </span>
-          <ChevronDown className="size-4 text-slate-500 transition-transform group-open:rotate-180" />
+          <ProgressBar
+            value={monthPaid}
+            max={monthTotal}
+            tone="success"
+            label="Avance de pagos del mes"
+          />
         </summary>
-        <dl className="space-y-3 border-t border-slate-200 p-4 text-sm">
+        <dl className="space-y-3 border-t border-line p-4 text-sm">
           <div className="flex flex-wrap justify-between gap-2">
-            <dt className="text-slate-600">Total del mes</dt>
+            <dt className="text-ink-2">Total del mes</dt>
             <dd className="text-right tabular-nums">
               {formatMoney(monthTotal, "ARS")}
             </dd>
           </div>
           <div className="flex flex-wrap justify-between gap-2">
-            <dt className="text-slate-600">Pagado</dt>
-            <dd className="text-right tabular-nums">
+            <dt className="text-ink-2">Pagado</dt>
+            <dd className="text-right font-medium text-success-ink tabular-nums">
               {formatMoney(monthPaid, "ARS")}
             </dd>
           </div>
           <div className="flex flex-wrap justify-between gap-2">
-            <dt className="text-slate-600">Pendientes</dt>
+            <dt className="text-ink-2">Pendientes</dt>
             <dd className="text-right tabular-nums">
               {monthPending.length} ·{" "}
               {monthPending.filter((i) => i.amount === null).length} sin importe
@@ -558,66 +585,101 @@ export function MonthlyPaymentsClient({
           </div>
         </dl>
       </details>
-      <div className="panel hidden divide-slate-200 sm:grid sm:grid-cols-3 sm:divide-x">
-        {[
-          {
-            label: "Total del mes",
-            value: monthTotal,
-            detail: `${items.length} conceptos cargados`,
-          },
-          {
-            label: "Pagado",
-            value: monthPaid,
-            detail: "Pagos registrados del mes",
-          },
-          {
-            label: "Pendiente de pago",
-            value: monthTotal - monthPaid,
-            detail: `${monthPending.length} pendientes · ${monthPending.filter((i) => i.amount === null).length} sin importe`,
-          },
-        ].map((metric) => (
-          <div
-            key={metric.label}
-            className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-4 py-3 sm:block sm:p-6"
-          >
-            <p className="text-xs font-medium text-slate-600">{metric.label}</p>
-            <p className="break-words text-right text-lg font-semibold tracking-tight text-slate-900 tabular-nums sm:mt-2 sm:text-left sm:text-2xl">
-              {formatMoney(metric.value, "ARS")}
-            </p>
-            <p className="hidden text-xs text-slate-600 tabular-nums sm:mt-1 sm:block">
-              {metric.detail}
-            </p>
-          </div>
-        ))}
+      <div className="hidden gap-4 sm:grid sm:grid-cols-3">
+        <div className="panel">
+          <Stat
+            label="Total del mes"
+            icon={Receipt}
+            value={formatMoney(monthTotal, "ARS")}
+            footer={
+              <p className="text-xs text-ink-3 tabular-nums">
+                {items.length} conceptos cargados
+              </p>
+            }
+          />
+        </div>
+        <div className="panel">
+          <Stat
+            label="Pagado"
+            icon={CircleDollarSign}
+            value={formatMoney(monthPaid, "ARS")}
+            valueClassName="text-success-ink"
+            footer={
+              <div className="space-y-2">
+                <ProgressBar
+                  value={monthPaid}
+                  max={monthTotal}
+                  tone="success"
+                  label="Avance de pagos del mes"
+                />
+                <p className="text-xs text-ink-3 tabular-nums">
+                  {monthTotal > 0
+                    ? Math.round((monthPaid / monthTotal) * 100)
+                    : 0}
+                  % del total del mes
+                </p>
+              </div>
+            }
+          />
+        </div>
+        <div className="panel">
+          <Stat
+            label="Pendiente de pago"
+            icon={Clock3}
+            value={formatMoney(monthTotal - monthPaid, "ARS")}
+            valueClassName={
+              monthTotal - monthPaid > 0.004 ? "text-warning-ink" : ""
+            }
+            footer={
+              <div className="flex flex-wrap items-center gap-2">
+                {monthPending.length > 0 ? (
+                  <PendingTag>{monthPending.length} pendientes</PendingTag>
+                ) : (
+                  <Tag tone="success" icon={CheckCircle2}>
+                    Todo pagado
+                  </Tag>
+                )}
+                {monthPending.filter((i) => i.amount === null).length > 0 && (
+                  <Tag tone="neutral">
+                    {monthPending.filter((i) => i.amount === null).length} sin
+                    importe
+                  </Tag>
+                )}
+              </div>
+            }
+          />
+        </div>
       </div>
 
       <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <CalendarDays
-            className="mr-1 hidden size-4 text-slate-500 sm:block"
+            className="mr-1 hidden size-4 text-ink-3 sm:block"
             aria-hidden="true"
           />
           <Link
             href={`/pagos?periodo=${prevPeriod}&tab=${tab}${colPerson !== "ALL" ? `&persona=${colPerson}` : ""}`}
             aria-label="Ver mes anterior"
-            className="icon-button border border-slate-300 bg-white"
+            title="Ver mes anterior"
+            className="icon-button border border-line bg-surface"
           >
             <ChevronLeft className="w-4 h-4" />
           </Link>
           <div className="min-w-0 flex-1 px-1 text-center sm:flex-none">
-            <h2 className="text-sm font-semibold text-slate-900 tabular-nums">
+            <h2 className="font-display text-base font-medium text-ink tabular-nums">
               {formatPeriodLabel(period)}
             </h2>
           </div>
           <Link
             href={`/pagos?periodo=${nextPeriod}&tab=${tab}${colPerson !== "ALL" ? `&persona=${colPerson}` : ""}`}
             aria-label="Ver mes siguiente"
-            className="icon-button border border-slate-300 bg-white"
+            title="Ver mes siguiente"
+            className="icon-button border border-line bg-surface"
           >
             <ChevronRight className="w-4 h-4" />
           </Link>
           {period !== currentPeriodISO() && (
-            <Link href={`/pagos?tab=${tab}`} className="btn-ghost text-xs">
+            <Link href={`/pagos?tab=${tab}`} className="btn-ghost px-3 text-accent-ink">
               Mes actual
             </Link>
           )}
@@ -629,9 +691,9 @@ export function MonthlyPaymentsClient({
               type="button"
               disabled={isPending}
               onClick={handleGenerateMonth}
-              className="btn-secondary text-xs"
+              className="btn-secondary"
             >
-              <Sparkles className="w-4 h-4" />
+              <ListPlus className="size-4" />
               Traer servicios fijos ({missingServicesCount})
             </button>
           )}
@@ -655,16 +717,16 @@ export function MonthlyPaymentsClient({
 
       {/* Pestañas + Toggle de Impagos Arrastrados de Meses Anteriores */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="inline-flex w-full rounded-xl border border-slate-300 bg-slate-100 p-1 text-sm font-medium sm:w-auto">
+        <div
+          role="group"
+          aria-label="Vista"
+          className="segmented w-full sm:w-auto"
+        >
           <button
             type="button"
             aria-pressed={tab === "grilla"}
             onClick={() => setTab("grilla")}
-            className={`min-h-11 flex-1 px-3 py-2 rounded-lg transition cursor-pointer ${
-              tab === "grilla"
-                ? "bg-white text-slate-900 shadow-xs"
-                : "text-slate-600"
-            }`}
+            className="segmented-item min-h-11 flex-1"
           >
             Vencimientos
           </button>
@@ -672,23 +734,18 @@ export function MonthlyPaymentsClient({
             type="button"
             aria-pressed={tab === "resumen"}
             onClick={() => setTab("resumen")}
-            className={`min-h-11 flex-1 px-3 py-2 rounded-lg transition cursor-pointer ${
-              tab === "resumen"
-                ? "bg-white text-slate-900 shadow-xs"
-                : "text-slate-600"
-            }`}
+            className="segmented-item min-h-11 flex-1"
           >
             Por persona
           </button>
         </div>
 
         {tab === "grilla" && carryOverItems.length > 0 && (
-          <div className="flex items-center gap-2 text-slate-600">
-            <History className="w-4 h-4 text-amber-600 shrink-0" />
+          <div className="flex items-center gap-2 rounded-control border border-orange-line bg-orange-soft/50 pl-3 pr-1 text-ink-2">
+            <History className="size-4 shrink-0 text-orange" aria-hidden="true" />
             <ToggleSwitch
               checked={showCarryOver}
               onChange={setShowCarryOver}
-              activeColor="slate"
               label={`Incluir pendientes anteriores (${carryOverItems.length})`}
             />
           </div>
@@ -696,40 +753,54 @@ export function MonthlyPaymentsClient({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="flex max-w-lg items-start gap-2 text-xs text-slate-600">
-          <Info className="mt-0.5 size-4 shrink-0" />
+        <p className="flex max-w-lg items-start gap-2 text-xs text-ink-3">
+          <Info className="mt-0.5 size-4 shrink-0 text-accent" />
           {tab === "grilla"
             ? "Marcar como pagado no descuenta saldo. Usá «Descontar» para registrar el egreso en la cuenta."
             : "Este resumen incluye solo los gastos del mes seleccionado, sin pendientes anteriores."}
         </p>
-        <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
-          Persona
-          <select
-            aria-label="Filtrar por persona"
-            value={colPerson}
-            onChange={(e) =>
-              setColPerson(
-                e.target.value === "ALL" ? "ALL" : Number(e.target.value),
-              )
-            }
-            className="field w-auto"
+        <div
+          role="group"
+          aria-label="Filtrar por persona"
+          className="flex max-w-full gap-1.5 overflow-x-auto pb-0.5"
+        >
+          <button
+            type="button"
+            aria-pressed={colPerson === "ALL"}
+            onClick={() => setColPerson("ALL")}
+            className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-3.5 text-sm transition-colors ${
+              colPerson === "ALL"
+                ? "border-accent-line bg-accent-soft font-medium text-accent-ink"
+                : "border-line bg-surface text-ink-2 hover:border-line-strong/60 hover:text-ink"
+            }`}
           >
-            <option value="ALL">Todas las personas</option>
-            {peopleForFilter.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            Todas
+          </button>
+          {peopleForFilter.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              aria-pressed={colPerson === p.id}
+              onClick={() => setColPerson(p.id)}
+              className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border py-1 pl-1 pr-3.5 text-sm transition-colors ${
+                colPerson === p.id
+                  ? "border-accent-line bg-accent-soft font-medium text-accent-ink"
+                  : "border-line bg-surface text-ink-2 hover:border-line-strong/60 hover:text-ink"
+              }`}
+            >
+              <Avatar name={p.name} seed={p.id} size="sm" />
+              {p.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       {tab === "grilla" ? (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="space-y-3 border-b border-slate-200 p-4">
+        <div className="panel overflow-hidden">
+          <div className="space-y-3 border-b border-line bg-subtle p-4">
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-slate-500" />
+                <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-ink-3" />
                 <input
                   type="search"
                   aria-label="Buscar servicio o nota"
@@ -740,7 +811,7 @@ export function MonthlyPaymentsClient({
                 />
               </div>
               <div
-                className="flex gap-1 rounded-lg bg-slate-100 p-1"
+                className="segmented"
                 role="group"
                 aria-label="Estado del pago"
               >
@@ -756,7 +827,7 @@ export function MonthlyPaymentsClient({
                     type="button"
                     aria-pressed={colStatus === value}
                     onClick={() => setColStatus(value)}
-                    className={`min-h-11 flex-1 rounded-md px-3 text-xs font-medium ${colStatus === value ? "bg-white text-slate-900 shadow-xs" : "text-slate-600 hover:bg-slate-200/50"}`}
+                    className="segmented-item min-h-10 flex-1"
                   >
                     {label}
                   </button>
@@ -764,15 +835,13 @@ export function MonthlyPaymentsClient({
               </div>
             </div>
             <details className="group">
-              <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 rounded-lg px-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+              <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 rounded-control px-2 text-sm text-ink-2 hover:bg-muted hover:text-ink">
                 <SlidersHorizontal className="size-4" />
                 Más filtros
                 {(colOrigin !== "ALL" ||
                   colAmountState !== "ALL" ||
                   colSettled !== "ALL") && (
-                  <span className="rounded-md bg-slate-100 px-2 py-1">
-                    Activos
-                  </span>
+                  <Tag tone="accent">Activos</Tag>
                 )}
               </summary>
               <div className="grid gap-4 pt-3 sm:grid-cols-3">
@@ -824,25 +893,27 @@ export function MonthlyPaymentsClient({
             </details>
           </div>
           {/* Barra superior de resumen de filtros */}
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2.5 text-xs text-ink-3">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
               <span>
                 Mostrando <strong>{filteredAndSorted.length}</strong> de{" "}
                 {combinedSource.length} ítems
               </span>
               <span className="hidden sm:inline">·</span>
-              <span>{pendingFilteredCount} pendientes</span>
+              <span className="text-warning-ink">
+                {pendingFilteredCount} pendientes
+              </span>
               <span className="hidden sm:inline">·</span>
               <span>
                 Pagado:{" "}
-                <strong className="text-emerald-700">
+                <strong className="font-medium text-success-ink">
                   {formatMoney(paidFilteredTotal, "ARS")}
                 </strong>
               </span>
               <span className="hidden sm:inline">·</span>
               <span>
                 Total:{" "}
-                <strong className="text-slate-900">
+                <strong className="font-medium text-ink">
                   {formatMoney(totalFiltered, "ARS")}
                 </strong>
               </span>
@@ -852,7 +923,7 @@ export function MonthlyPaymentsClient({
               <button
                 type="button"
                 onClick={clearAllFilters}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 cursor-pointer"
+                className="inline-flex min-h-9 items-center gap-1 rounded-control px-2 text-xs font-medium text-danger-ink hover:bg-danger-soft cursor-pointer"
               >
                 <FilterX className="w-3.5 h-3.5" />
                 Limpiar filtros
@@ -861,7 +932,7 @@ export function MonthlyPaymentsClient({
           </div>
 
           <div className="md:hidden">
-            <label className="flex items-center justify-end gap-2 border-b border-slate-200 px-4 py-2 text-xs text-slate-600">
+            <label className="flex items-center justify-end gap-2 border-b border-line px-4 py-2 text-xs text-ink-3">
               Ordenar
               <select
                 aria-label="Orden de los pagos"
@@ -885,7 +956,7 @@ export function MonthlyPaymentsClient({
                 <option value="status-desc">Pendientes primero</option>
               </select>
             </label>
-            <div className="divide-y divide-slate-200">
+            <div className="divide-y divide-line">
               {filteredAndSorted.map((item) => (
                 <PaymentMobileCard
                   key={item.id}
@@ -939,14 +1010,14 @@ export function MonthlyPaymentsClient({
             )}
           </div>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full text-sm">
+            <table className="data-table w-full text-sm">
               <caption className="sr-only">
                 Vencimientos de {formatPeriodLabel(period)}. Los importes y
                 fechas se pueden editar.
               </caption>
-              <thead className="bg-slate-50 text-xs font-semibold text-slate-600 border-b border-slate-200">
+              <thead>
                 {/* Fila 1: Títulos ordenables */}
-                <tr className="uppercase">
+                <tr>
                   <th
                     aria-sort={
                       sortField === "status"
@@ -955,12 +1026,12 @@ export function MonthlyPaymentsClient({
                           : "descending"
                         : "none"
                     }
-                    className="w-24 px-3 py-2.5 text-center font-semibold"
+                    className="w-24 px-3 py-2.5 text-center font-medium"
                   >
                     <button
                       type="button"
                       onClick={() => toggleSort("status")}
-                      className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
+                      className="inline-flex items-center gap-1 hover:text-ink cursor-pointer"
                     >
                       Estado
                       <ArrowUpDown className="w-3 h-3" />
@@ -974,12 +1045,12 @@ export function MonthlyPaymentsClient({
                           : "descending"
                         : "none"
                     }
-                    className="text-left px-3 py-2.5 font-semibold"
+                    className="text-left px-3 py-2.5 font-medium"
                   >
                     <button
                       type="button"
                       onClick={() => toggleSort("concept")}
-                      className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
+                      className="inline-flex items-center gap-1 hover:text-ink cursor-pointer"
                     >
                       Concepto
                       <ArrowUpDown className="w-3 h-3" />
@@ -993,12 +1064,12 @@ export function MonthlyPaymentsClient({
                           : "descending"
                         : "none"
                     }
-                    className="text-left px-3 py-2.5 font-semibold"
+                    className="text-left px-3 py-2.5 font-medium"
                   >
                     <button
                       type="button"
                       onClick={() => toggleSort("person")}
-                      className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
+                      className="inline-flex items-center gap-1 hover:text-ink cursor-pointer"
                     >
                       Persona
                       <ArrowUpDown className="w-3 h-3" />
@@ -1012,12 +1083,12 @@ export function MonthlyPaymentsClient({
                           : "descending"
                         : "none"
                     }
-                    className="text-right px-3 py-2.5 font-semibold"
+                    className="text-right px-3 py-2.5 font-medium"
                   >
                     <button
                       type="button"
                       onClick={() => toggleSort("dueDate")}
-                      className="inline-flex items-center gap-1 hover:text-slate-900 cursor-pointer"
+                      className="inline-flex items-center gap-1 hover:text-ink cursor-pointer"
                     >
                       Vencimiento
                       <ArrowUpDown className="w-3 h-3" />
@@ -1031,18 +1102,18 @@ export function MonthlyPaymentsClient({
                           : "descending"
                         : "none"
                     }
-                    className="text-right px-3 py-2.5 font-semibold"
+                    className="text-right px-3 py-2.5 font-medium"
                   >
                     <button
                       type="button"
                       onClick={() => toggleSort("amount")}
-                      className="inline-flex items-center gap-1 ml-auto hover:text-slate-900 cursor-pointer"
+                      className="inline-flex items-center gap-1 ml-auto hover:text-ink cursor-pointer"
                     >
                       Monto
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-center px-3 py-2.5 font-semibold">
+                  <th className="text-center px-3 py-2.5 font-medium">
                     Cuenta
                   </th>
                   <th className="w-10 px-2 py-2.5">
@@ -1051,7 +1122,7 @@ export function MonthlyPaymentsClient({
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-200">
+              <tbody>
                 {filteredAndSorted.length === 0 ? (
                   <tr>
                     <td colSpan={7}>
@@ -1112,13 +1183,11 @@ export function MonthlyPaymentsClient({
                     return (
                       <tr
                         key={`${item.isCarryOver ? "co" : "cur"}-${item.id}`}
-                        className={`transition ${
+                        className={
                           item.isCarryOver
-                            ? "bg-amber-50/60 hover:bg-amber-50"
-                            : isPaid
-                              ? "hover:bg-slate-50"
-                              : "bg-slate-50 hover:bg-slate-50"
-                        }`}
+                            ? "bg-orange-soft/40 hover:bg-orange-soft/70"
+                            : undefined
+                        }
                       >
                         <td className="px-3 py-2.5 text-center">
                           <button
@@ -1131,63 +1200,61 @@ export function MonthlyPaymentsClient({
                                 ? "Pagado (clic para pasar a pendiente)"
                                 : "Pendiente (clic para marcar pagado)"
                             }
-                            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg cursor-pointer"
+                            className="inline-flex min-h-11 items-center rounded-control px-1 transition-transform active:scale-[0.97] cursor-pointer"
                           >
                             {isPaid ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                Pagado
-                              </span>
+                              <PaidTag />
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-full">
-                                <Circle className="w-3.5 h-3.5" />
-                                Pend.
-                              </span>
+                              <PendingTag>Pend.</PendingTag>
                             )}
                           </button>
                         </td>
 
                         <td className="px-3 py-2.5">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-medium text-slate-900">
+                            <span className="font-medium text-ink">
                               {item.concept}
                             </span>
 
                             {item.isCarryOver && (
-                              <span className="text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-950">
+                              <CarryOverTag>
                                 Impago de {formatShortPeriodLabel(item.period)}
-                              </span>
+                              </CarryOverTag>
                             )}
 
                             {isArrears && (
-                              <span
+                              <Tag
+                                tone="neutral"
+                                icon={FileClock}
                                 title={`Se abona en ${formatPeriodLabel(
                                   item.period,
                                 )} pero corresponde al período ${formatPeriodLabel(
                                   effectiveBilledPeriod,
                                 )}`}
-                                className="text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/80"
                               >
                                 Período{" "}
                                 {formatShortPeriodLabel(effectiveBilledPeriod)}
-                              </span>
+                              </Tag>
                             )}
 
                             {item.kind === "EXTRA" && (
-                              <span className="text-[0.625rem] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                                Extra
-                              </span>
+                              <Tag tone="iris">Extra</Tag>
                             )}
                           </div>
                           {item.notes && (
-                            <p className="text-xs text-slate-600 mt-0.5">
+                            <p className="text-xs text-ink-3 mt-0.5">
                               {item.notes}
                             </p>
                           )}
                         </td>
 
                         <td className="px-3 py-2.5 whitespace-nowrap">
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                          <span className="inline-flex items-center gap-2 text-sm text-ink-2">
+                            <Avatar
+                              name={item.person.name}
+                              seed={item.personId}
+                              size="xs"
+                            />
                             {item.person.name}
                           </span>
                         </td>
@@ -1202,7 +1269,7 @@ export function MonthlyPaymentsClient({
                             onBlur={(e) =>
                               handleBlurDueDate(item, e.target.value)
                             }
-                            className="min-h-11 px-2 py-1 rounded-lg border border-transparent hover:border-slate-300 focus:border-slate-400 text-right text-xs tabular-nums text-slate-700 bg-transparent focus:bg-white"
+                            className="min-h-11 px-2 py-1 rounded-control border border-transparent hover:border-line-strong/60 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/20 text-right text-sm tabular-nums text-ink-2 bg-transparent focus:bg-surface"
                           />
                         </td>
 
@@ -1218,25 +1285,25 @@ export function MonthlyPaymentsClient({
 
                         <td className="px-3 py-2.5 text-center whitespace-nowrap">
                           {item.settledTransactionId ? (
-                            <span className="text-[0.6875rem] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                            <SettledTag>
                               Descontado
                               {item.settledTransaction?.account?.name
-                                ? ` (${item.settledTransaction.account.name})`
+                                ? ` · ${item.settledTransaction.account.name}`
                                 : ""}
-                            </span>
+                            </SettledTag>
                           ) : canSettleIndividually ? (
                             <button
                               type="button"
                               disabled={isPending}
                               onClick={() => handleSettleSingleItem(item)}
                               title="Descontar este ítem directo en la cuenta de la persona"
-                              className="btn-secondary px-2 text-xs"
+                              className="btn-secondary min-h-9 px-2.5"
                             >
-                              <ArrowDownToLine className="w-3 h-3" />
+                              <ArrowDownToLine className="size-3.5" />
                               Descontar
                             </button>
                           ) : (
-                            <span className="text-xs text-slate-500">—</span>
+                            <span className="text-xs text-ink-3">—</span>
                           )}
                         </td>
 
@@ -1245,10 +1312,11 @@ export function MonthlyPaymentsClient({
                             type="button"
                             disabled={isPending}
                             aria-label={`Quitar ${item.concept}`}
+                            title={`Quitar ${item.concept}`}
                             onClick={() => handleDeleteItem(item)}
-                            className="icon-button hover:text-rose-700 hover:bg-rose-50"
+                            className="icon-button icon-button-danger"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="size-4" />
                           </button>
                         </td>
                       </tr>
@@ -1281,35 +1349,36 @@ export function MonthlyPaymentsClient({
               return (
                 <div
                   key={p.id}
-                  className="panel p-4 sm:p-6 flex flex-col justify-between gap-4"
+                  className="panel flex flex-col justify-between"
                 >
-                  <div className="space-y-4">
-                    <div className="flex items-start justify-between border-b border-slate-200 pb-3">
-                      <div>
-                        <h2 className="text-base font-medium text-slate-900">
-                          {p.name}
-                        </h2>
-                        <p className="text-xs text-slate-600">
-                          {formatPeriodLabel(period)} · {pItems.length}{" "}
-                          conceptos
-                        </p>
+                  <div>
+                    <div className="panel-header flex-nowrap">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Avatar name={p.name} seed={p.id} size="md" />
+                        <div className="min-w-0">
+                          <h2 className="truncate text-base font-medium text-ink">
+                            {p.name}
+                          </h2>
+                          <p className="text-xs text-ink-3">
+                            {formatPeriodLabel(period)} · {pItems.length}{" "}
+                            conceptos
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right tabular-nums">
-                        <p className="text-xs text-slate-700 uppercase font-semibold">
-                          Total Mes
-                        </p>
-                        <p className="text-xl font-bold text-slate-900">
+                      <div className="shrink-0 text-right">
+                        <p className="text-xs text-ink-3">Total del mes</p>
+                        <p className="num text-xl font-medium text-ink">
                           {formatMoney(total, "ARS")}
                         </p>
                       </div>
                     </div>
 
                     {pItems.length === 0 ? (
-                      <p className="text-xs text-slate-600 py-4 text-center">
+                      <p className="text-sm text-ink-3 py-6 text-center">
                         Sin servicios ni extras en este mes
                       </p>
                     ) : (
-                      <div className="divide-y divide-slate-200 text-sm">
+                      <div className="divide-y divide-line px-4 text-sm sm:px-5">
                         {pItems.map((it) => {
                           const isArrears =
                             Boolean(
@@ -1318,29 +1387,31 @@ export function MonthlyPaymentsClient({
                           return (
                             <div
                               key={it.id}
-                              className="py-2 flex items-center justify-between gap-2"
+                              className="py-2.5 flex items-center justify-between gap-2"
                             >
                               <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                                <span className="truncate text-slate-800">
+                                <span className="truncate text-ink">
                                   {it.concept}
                                 </span>
                                 {isArrears && it.billedPeriod && (
-                                  <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold">
+                                  <Tag tone="neutral" icon={FileClock}>
                                     {formatShortPeriodLabel(it.billedPeriod)}
-                                  </span>
+                                  </Tag>
                                 )}
                                 {it.kind === "EXTRA" && (
-                                  <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
-                                    Extra
-                                  </span>
+                                  <Tag tone="iris">Extra</Tag>
                                 )}
-                                {it.settledTransactionId && (
-                                  <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">
-                                    Descontado
-                                  </span>
-                                )}
+                                {it.settledTransactionId && <SettledTag />}
                               </div>
-                              <span className="text-right font-medium text-slate-900 shrink-0 tabular-nums">
+                              <span
+                                className={`text-right font-medium shrink-0 tabular-nums ${
+                                  it.amount
+                                    ? it.status === "PAID"
+                                      ? "text-success-ink"
+                                      : "text-ink"
+                                    : "text-ink-3"
+                                }`}
+                              >
                                 {it.amount
                                   ? formatMoney(it.amount, "ARS")
                                   : "Sin monto"}
@@ -1352,7 +1423,7 @@ export function MonthlyPaymentsClient({
                     )}
                   </div>
 
-                  <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2 rounded-b-surface border-t border-line bg-subtle px-4 py-3 sm:px-5">
                     <button
                       type="button"
                       disabled={isPending}
@@ -1360,9 +1431,10 @@ export function MonthlyPaymentsClient({
                         setExtraKind("EXTRA");
                         openExtra(p.id);
                       }}
-                      className="btn-ghost px-2 text-xs"
+                      className="btn-ghost px-2.5"
                     >
-                      + Agregar extra a {p.name}
+                      <Plus className="size-4" />
+                      Agregar extra a {p.name}
                     </button>
 
                     {p.hasManagedAccount && settleableAccounts(p).length > 0 && (
@@ -1372,17 +1444,15 @@ export function MonthlyPaymentsClient({
                             type="button"
                             disabled={isPending}
                             onClick={() => openSettlePersonModal(p)}
-                            className="btn-secondary max-w-full whitespace-normal text-xs tabular-nums"
+                            className="btn-primary max-w-full whitespace-normal tabular-nums"
                           >
-                            <ArrowDownToLine className="w-3.5 h-3.5" />
+                            <ArrowDownToLine className="size-4" />
                             Descontar {formatMoney(unsettledTotal, "ARS")} en
                             cuenta
                           </button>
                         ) : pItems.length > 0 &&
                           pItems.every((item) => item.settledTransactionId) ? (
-                          <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
-                            Mes descontado en cuenta
-                          </span>
+                          <SettledTag>Mes descontado en cuenta</SettledTag>
                         ) : null}
                       </div>
                     )}
@@ -1421,13 +1491,14 @@ export function MonthlyPaymentsClient({
               <div className="flex items-center justify-between">
                 <h3
                   id="extra-title"
-                  className="text-base font-semibold text-slate-900"
+                  className="font-display text-lg font-medium text-ink"
                 >
                   Agregar gasto · {formatPeriodLabel(period)}
                 </h3>
                 <button
                   type="button"
                   aria-label="Cerrar formulario de gasto"
+                  title="Cerrar"
                   onClick={() => {
                     setExtraOpen(false);
                     setActionError(null);
@@ -1448,7 +1519,7 @@ export function MonthlyPaymentsClient({
                     id="extra-person"
                     value={extraPersonId}
                     onChange={(e) => setExtraPersonId(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
+                    className="field"
                   >
                     {people.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -1467,7 +1538,7 @@ export function MonthlyPaymentsClient({
                     onChange={(e) =>
                       setExtraKind(e.target.value as "EXTRA" | "SERVICE")
                     }
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
+                    className="field"
                   >
                     <option value="EXTRA">Extra puntual del mes</option>
                     <option value="SERVICE">Servicio del mes</option>
@@ -1487,7 +1558,7 @@ export function MonthlyPaymentsClient({
                   autoFocus
                   value={extraConcept}
                   onChange={(e) => setExtraConcept(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                  className="field"
                 />
               </div>
 
@@ -1513,7 +1584,7 @@ export function MonthlyPaymentsClient({
                     type="date"
                     value={extraDueDate}
                     onChange={(e) => setExtraDueDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                    className="field"
                   />
                 </div>
               </div>
@@ -1539,14 +1610,14 @@ export function MonthlyPaymentsClient({
                     setExtraOpen(false);
                     setActionError(null);
                   }}
-                  className="min-h-11 px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="btn-ghost"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                  className="btn-primary"
                 >
                   {isPending ? "Guardando…" : "Guardar gasto"}
                 </button>
@@ -1564,7 +1635,7 @@ export function MonthlyPaymentsClient({
               <div className="flex items-center justify-between gap-3">
                 <h3
                   id="settle-title"
-                  className="min-w-0 break-words text-base font-semibold text-slate-900"
+                  className="min-w-0 break-words font-display text-lg font-medium text-ink"
                 >
                   {settleTarget.kind === "item"
                     ? `Descontar ${settleTarget.item.concept}`
@@ -1574,6 +1645,7 @@ export function MonthlyPaymentsClient({
                 <button
                   type="button"
                   aria-label="Cerrar descuento"
+                  title="Cerrar"
                   onClick={closeSettleModal}
                   className="icon-button -mr-2"
                 >
@@ -1582,13 +1654,13 @@ export function MonthlyPaymentsClient({
               </div>
               {errorNotice}
 
-              <div className="flex items-baseline justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-xs text-slate-600">
+              <div className="flex items-baseline justify-between gap-3 rounded-panel border border-accent-line bg-accent-soft px-3 py-2.5">
+                <span className="text-xs text-accent-ink">
                   {settleTarget.kind === "item"
                     ? `Importe de ${formatPeriodLabel(settleTarget.item.period)}`
                     : `Pendiente de descontar en ${formatPeriodLabel(period)}`}
                 </span>
-                <span className="text-base font-semibold text-slate-900 tabular-nums">
+                <span className="num text-lg font-medium text-accent-ink">
                   {formatMoney(settleAmount, "ARS")}
                 </span>
               </div>
@@ -1647,8 +1719,8 @@ export function MonthlyPaymentsClient({
                       ))}
                     </select>
                   </div>
-                  <p className="flex gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs text-indigo-900">
-                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p className="alert alert-accent gap-2 px-3 py-2.5 text-xs">
+                    <Info className="mt-0.5 size-4 shrink-0" />
                     <span>
                       Se registrará un préstamo de{" "}
                       <strong>{settleLender.name}</strong> a{" "}
@@ -1664,7 +1736,7 @@ export function MonthlyPaymentsClient({
               )}
 
               {!settleLender && (
-                <p className="text-xs text-slate-600">
+                <p className="text-xs text-ink-3">
                   {settleTarget.kind === "item"
                     ? "Se generará un egreso en la cuenta elegida y el ítem quedará marcado como descontado."
                     : `Se generará un único egreso por todos los servicios y extras pendientes de descontar en ${formatPeriodLabel(period)}, dejándolos marcados para no duplicarlos.`}

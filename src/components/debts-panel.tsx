@@ -13,6 +13,7 @@ import {
 import { MoneyInput } from "@/components/ui-controls";
 import { EmptyState, FeedbackBanner } from "@/components/ui-feedback";
 import { Modal } from "@/components/modal";
+import { Avatar, PanelHeader, Tag } from "@/components/cui";
 
 function repayAccounts(
   people: PersonCardSummary[],
@@ -120,19 +121,21 @@ export function DebtsPanel({
     : [];
 
   return (
-    <section aria-labelledby="debts-heading" className={`panel p-4 sm:p-6 ${className}`}>
-      <span className="mb-4 inline-flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-        <HandCoins className="size-4" />
-      </span>
-      <h2 id="debts-heading" className="text-base font-medium">
-        Deudas entre personas
-      </h2>
-      <p className="mt-2 text-xs leading-relaxed text-slate-600">
-        Préstamos para pagar gastos de otra persona, netos de las devoluciones.
-      </p>
+    <section aria-labelledby="debts-heading" className={`panel ${className}`}>
+      <PanelHeader
+        id="debts-heading"
+        icon={HandCoins}
+        title={
+          <>
+            Deudas entre personas
+            {balances.length > 0 && <Tag tone="iris">{balances.length}</Tag>}
+          </>
+        }
+        description="Préstamos entre personas, netos de devoluciones."
+      />
 
       {feedback && (
-        <div className="mt-4">
+        <div className="px-4 pt-4 sm:px-5">
           <FeedbackBanner message={feedback} onDismiss={() => setFeedback(null)} />
         </div>
       )}
@@ -143,7 +146,7 @@ export function DebtsPanel({
           description="Cuando pagues un gasto con dinero de otra persona, la deuda aparece acá."
         />
       ) : (
-        <div className="mt-4 divide-y divide-slate-200">
+        <div className="divide-y divide-line">
           {balances.map((b) => {
             const canRepay =
               repayAccounts(people, b.debtor.id, b.currency).length > 0 &&
@@ -151,13 +154,19 @@ export function DebtsPanel({
             return (
               <div
                 key={`${b.debtor.id}-${b.creditor.id}-${b.currency}`}
-                className="flex flex-wrap items-center justify-between gap-2 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{describe(b)}</p>
-                  <p className="mt-1 text-sm font-semibold tabular-nums">
-                    {formatMoney(b.amount, b.currency)}
-                  </p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex -space-x-2">
+                    <Avatar name={b.debtor.name} seed={b.debtor.id} size="sm" className="ring-2 ring-surface" />
+                    <Avatar name={b.creditor.name} seed={b.creditor.id} size="sm" className="ring-2 ring-surface" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm">{describe(b)}</p>
+                    <p className="mt-0.5 text-sm font-medium tabular-nums text-iris-ink">
+                      {formatMoney(b.amount, b.currency)}
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -168,7 +177,7 @@ export function DebtsPanel({
                       ? `Registrar devolución de ${b.debtor.name} a ${b.creditor.name}`
                       : `Faltan cuentas activas en ${b.currency} para registrar la devolución`
                   }
-                  className="btn-secondary text-xs"
+                  className="btn-secondary min-h-10 px-3"
                 >
                   <Undo2 className="size-3.5" />
                   Registrar devolución
@@ -190,7 +199,7 @@ export function DebtsPanel({
               <div className="flex items-center justify-between gap-3">
                 <h3
                   id="repay-title"
-                  className="min-w-0 break-words text-base font-semibold text-slate-900"
+                  className="min-w-0 break-words font-display text-lg font-medium text-ink"
                 >
                   Devolución de {repaying.debtor.name} a {repaying.creditor.name}
                 </h3>
@@ -206,9 +215,9 @@ export function DebtsPanel({
 
               {formError && <FeedbackBanner message={formError} error />}
 
-              <div className="flex items-baseline justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-xs text-slate-600">Deuda actual</span>
-                <span className="text-base font-semibold tabular-nums">
+              <div className="flex items-baseline justify-between gap-3 rounded-panel border border-iris-line bg-iris-soft px-3 py-2">
+                <span className="text-xs text-iris-ink">Deuda actual</span>
+                <span className="num text-base font-medium text-iris-ink">
                   {formatMoney(repaying.amount, repaying.currency)}
                 </span>
               </div>
@@ -292,7 +301,7 @@ export function DebtsPanel({
                 />
               </div>
 
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-ink-3">
                 Se registra como transferencia entre las dos cuentas y descuenta de la
                 deuda. Podés devolver una parte.
               </p>

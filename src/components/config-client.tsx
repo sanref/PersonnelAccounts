@@ -3,18 +3,25 @@
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Bell,
+  CalendarRange,
   Check,
   Copy,
   Download,
   Eye,
   EyeOff,
   FilterX,
+  History,
   KeyRound,
+  Link2,
   Pencil,
   Plus,
   RefreshCw,
+  Repeat,
   Star,
   Trash2,
+  Users,
+  Wallet,
   X,
 } from "lucide-react";
 import type { AccountSummary, PersonCardSummary } from "@/lib/queries";
@@ -40,6 +47,7 @@ import { MoneyInput, ToggleSwitch } from "@/components/ui-controls";
 import { NotificationSettingsCard } from "@/components/notification-settings-card";
 import { EmptyState } from "@/components/ui-feedback";
 import { Modal } from "@/components/modal";
+import { Avatar, PanelHeader, Tag } from "@/components/cui";
 import {
   FREQUENCY_OPTIONS,
   monthNameAR,
@@ -295,34 +303,43 @@ export function ConfigClient({
         ? `/v/${liveEditingPerson.shareToken}`
         : "";
 
+  const clearServiceFilters = () => {
+    setFPerson("ALL");
+    setFName("");
+    setFArrears("ALL");
+    setFActive("ALL");
+  };
+
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <p className="eyebrow mb-1">Tu espacio familiar</p>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div className="space-y-1">
           <h1 className="page-title">Configuración</h1>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-ink-2">
             Personas, servicios y preferencias de tu administración.
           </p>
         </div>
 
-        <a href="/api/export" className="btn-secondary self-start">
-          <Download className="w-4 h-4" />
+        <a href="/api/export" className="btn-secondary self-start sm:self-auto">
+          <Download className="size-4" />
           Descargar backup
         </a>
       </div>
 
       <nav
         aria-label="Secciones de configuración"
-        className="flex gap-2 overflow-x-auto border-b border-slate-200 pb-3"
+        className="segmented max-w-full overflow-x-auto"
       >
-        <a href="#personas" className="btn-ghost text-xs">
+        <a href="#personas" className="segmented-item whitespace-nowrap">
+          <Users className="size-4" aria-hidden="true" />
           Personas y cuentas
         </a>
-        <a href="#servicios" className="btn-ghost text-xs">
+        <a href="#servicios" className="segmented-item whitespace-nowrap">
+          <Repeat className="size-4" aria-hidden="true" />
           Servicios fijos
         </a>
-        <a href="#notificaciones" className="btn-ghost text-xs">
+        <a href="#notificaciones" className="segmented-item whitespace-nowrap">
+          <Bell className="size-4" aria-hidden="true" />
           Notificaciones
         </a>
       </nav>
@@ -330,115 +347,105 @@ export function ConfigClient({
       {/* SECCIÓN 1: PERSONAS, CONTRASEÑAS Y SUBCUENTAS */}
       <section
         id="personas"
-        className="panel scroll-mt-36 p-4 sm:p-6 space-y-6"
+        aria-labelledby="personas-heading"
+        className="panel scroll-mt-36"
       >
-        <div>
-          <h2 className="text-base font-medium text-slate-900">
-            Personas y cuentas
-          </h2>
-          <p className="text-xs text-slate-600">
-            Administrá subcuentas y habilitá el acceso de cada persona a su
-            resumen.
-          </p>
-        </div>
+        <PanelHeader
+          id="personas-heading"
+          icon={Users}
+          title={
+            <>
+              Personas y cuentas
+              <Tag tone="neutral">{people.length}</Tag>
+            </>
+          }
+          description="Administrá subcuentas y habilitá el acceso de cada persona a su resumen."
+        />
 
-        {/* Tarjetas de Personas existentes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {people.map((p) => {
-            const hasPassword = Boolean(
-              p.sharePin && p.sharePin.trim().length > 0,
-            );
-            return (
-              <div
-                key={p.id}
-                className="p-4 rounded-2xl border border-slate-200 flex flex-col justify-between gap-3 hover:border-slate-300 transition"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-slate-900">{p.name}</h3>
-                        <span className="text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                          {p.defaultCurrency}
-                        </span>
-                      </div>
-                      {p.notes && (
-                        <p className="text-xs text-slate-600 mt-0.5 line-clamp-1">
-                          {p.notes}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Estado de cuenta / saldo */}
-                  <div className="text-xs text-slate-600 tabular-nums">
-                    {p.hasManagedAccount ? (
-                      <>
-                        <span>Saldo total: </span>
-                        <strong className="text-slate-900">
-                          {formatMoney(p.totalBalance, p.defaultCurrency)}
-                        </strong>
-                        <span className="text-slate-600">
-                          {" "}
-                          · {p.accounts.map((a) => a.name).join(", ")}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-slate-600">
-                        Solo servicios mensuales (sin cuenta administrada)
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Estado de acceso familiar */}
-                  <div className="pt-1">
-                    {!p.shareEnabled ? (
-                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                        Acceso familiar desactivado
-                      </span>
-                    ) : hasPassword ? (
-                      <span className="inline-flex items-center gap-1 text-[0.6875rem] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                        <KeyRound className="w-3 h-3" />
-                        Con contraseña asignada
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[0.6875rem] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-800">
-                        Link activo (sin contraseña aún)
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-200 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => openEditPersonModal(p)}
-                    className="btn-secondary text-xs"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Editar persona
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Formulario Agregar Nueva Persona */}
-        {people.length === 0 && (
+        {people.length === 0 ? (
           <EmptyState
             title="Todavía no hay personas"
             description="Abrí «Agregar persona» para crear la primera cuenta familiar."
           />
+        ) : (
+          <div className="divide-y divide-line">
+            {people.map((p) => {
+              const hasPassword = Boolean(
+                p.sharePin && p.sharePin.trim().length > 0,
+              );
+              return (
+                <div
+                  key={p.id}
+                  className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors duration-100 hover:bg-subtle sm:flex-nowrap sm:px-5"
+                >
+                  <Avatar name={p.name} seed={p.id} size="md" />
+                  <div className="min-w-0 flex-1 basis-48">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-medium text-ink">{p.name}</h3>
+                      <Tag tone="neutral">{p.defaultCurrency}</Tag>
+                    </div>
+                    {p.notes && (
+                      <p className="mt-0.5 line-clamp-1 text-xs text-ink-3">
+                        {p.notes}
+                      </p>
+                    )}
+                    {/* Estado de cuenta / saldo */}
+                    <p className="mt-1 text-xs text-ink-3 tabular-nums">
+                      {p.hasManagedAccount ? (
+                        <>
+                          <span>Saldo total: </span>
+                          <strong
+                            className={`font-medium ${p.totalBalance < -0.004 ? "text-danger-ink" : "text-ink"}`}
+                          >
+                            {formatMoney(p.totalBalance, p.defaultCurrency)}
+                          </strong>
+                          <span> · {p.accounts.map((a) => a.name).join(", ")}</span>
+                        </>
+                      ) : (
+                        <span>Solo servicios mensuales (sin cuenta administrada)</span>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Estado de acceso familiar */}
+                  <div className="flex w-full flex-wrap items-center justify-between gap-2 pl-13 sm:w-auto sm:justify-end sm:pl-0">
+                    {!p.shareEnabled ? (
+                      <Tag tone="neutral" icon={EyeOff}>
+                        Acceso familiar desactivado
+                      </Tag>
+                    ) : hasPassword ? (
+                      <Tag tone="success" icon={KeyRound}>
+                        Con contraseña asignada
+                      </Tag>
+                    ) : (
+                      <Tag tone="warning" icon={Link2}>
+                        Link activo (sin contraseña aún)
+                      </Tag>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => openEditPersonModal(p)}
+                      className="btn-secondary min-h-10 px-3"
+                    >
+                      <Pencil className="size-4" />
+                      Editar persona
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
-        <details className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <summary className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg text-sm font-medium">
-            <Plus className="size-4" />
+
+        {/* Formulario Agregar Nueva Persona */}
+        <details className="group rounded-b-surface border-t border-line bg-subtle">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 rounded-b-surface px-4 text-sm font-medium text-accent-ink hover:bg-muted/60 sm:px-5">
+            <Plus className="size-4 transition-transform group-open:rotate-45" />
             Agregar persona
           </summary>
           <form
             onSubmit={handleAddPerson}
-            className="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-4"
+            className="grid grid-cols-1 gap-4 px-4 pb-5 pt-1 sm:grid-cols-12 sm:px-5"
           >
             <div className="sm:col-span-3">
               <label className="field-label" htmlFor="person-name">
@@ -499,9 +506,10 @@ export function ConfigClient({
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full min-h-11 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 cursor-pointer"
+                className="btn-primary w-full"
               >
-                + Crear Persona
+                <Plus className="size-4" />
+                Crear persona
               </button>
             </div>
           </form>
@@ -509,128 +517,134 @@ export function ConfigClient({
       </section>
 
       {/* SECCIÓN 2: CATÁLOGO DE SERVICIOS FIJOS */}
-      <section id="servicios" className="panel scroll-mt-36 overflow-hidden">
-        <div className="p-5 sm:p-6 space-y-4 border-b border-slate-200">
-          <div>
-            <h2 className="text-base font-medium text-slate-900">
+      <section
+        id="servicios"
+        aria-labelledby="servicios-heading"
+        className="panel scroll-mt-36 overflow-hidden"
+      >
+        <PanelHeader
+          id="servicios-heading"
+          icon={Repeat}
+          title={
+            <>
               Servicios fijos
-            </h2>
-            <p className="text-xs text-slate-600">
-              Este catálogo se reutiliza según la frecuencia de cada servicio
-              (mensual, bimestral…). «Mes vencido» indica que la factura
-              corresponde al mes anterior.
-            </p>
-          </div>
+              <Tag tone="neutral">{services.length}</Tag>
+            </>
+          }
+          description="Este catálogo se reutiliza según la frecuencia de cada servicio (mensual, bimestral…). «Mes vencido» indica que la factura corresponde al mes anterior."
+        />
 
-          <details className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <summary className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg text-sm font-medium">
-              <Plus className="size-4" />
-              Agregar servicio fijo
-            </summary>
-            <form
-              onSubmit={handleAddService}
-              className="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-4 items-end"
-            >
-              <div className="sm:col-span-2">
-                <label className="field-label" htmlFor="service-person">
-                  Persona
+        <details className="group border-b border-line bg-subtle">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-sm font-medium text-accent-ink hover:bg-muted/60 sm:px-5">
+            <Plus className="size-4 transition-transform group-open:rotate-45" />
+            Agregar servicio fijo
+          </summary>
+          <form
+            onSubmit={handleAddService}
+            className="grid grid-cols-1 items-end gap-4 px-4 pb-5 pt-1 sm:grid-cols-12 sm:px-5"
+          >
+            <div className="sm:col-span-2">
+              <label className="field-label" htmlFor="service-person">
+                Persona
+              </label>
+              <select
+                id="service-person"
+                value={sPersonId}
+                onChange={(e) => setSPersonId(Number(e.target.value))}
+                className="field"
+              >
+                {people.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-3">
+              <label className="field-label" htmlFor="service-name">
+                Servicio
+              </label>
+              <input
+                id="service-name"
+                type="text"
+                required
+                value={sName}
+                onChange={(e) => setSName(e.target.value)}
+                placeholder="Nombre servicio..."
+                className="field"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="field-label" htmlFor="service-day">
+                Día de vencimiento
+              </label>
+              <input
+                id="service-day"
+                type="number"
+                min={1}
+                max={31}
+                value={sDueDay}
+                onChange={(e) => setSDueDay(e.target.value)}
+                placeholder="Día venc."
+                title="Día aproximado de vencimiento (1-31)"
+                className="field text-right tabular-nums"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="field-label" htmlFor="service-notes">
+                Nota (opcional)
+              </label>
+              <input
+                id="service-notes"
+                type="text"
+                value={sNotes}
+                onChange={(e) => setSNotes(e.target.value)}
+                placeholder="Nota / N° cliente"
+                className="field"
+              />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="field-label" htmlFor="service-frequency">
+                Frecuencia
+              </label>
+              <select
+                id="service-frequency"
+                value={sFrequency}
+                onChange={(e) => setSFrequency(Number(e.target.value))}
+                className="field"
+              >
+                {FREQUENCY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {sFrequency > 1 && (
+              <div className="sm:col-span-3">
+                <label className="field-label" htmlFor="service-start-month">
+                  Primer mes de pago
                 </label>
                 <select
-                  id="service-person"
-                  value={sPersonId}
-                  onChange={(e) => setSPersonId(Number(e.target.value))}
+                  id="service-start-month"
+                  value={sStartMonth}
+                  onChange={(e) => setSStartMonth(Number(e.target.value))}
                   className="field"
                 >
-                  {people.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                    <option key={m} value={m}>
+                      {monthNameAR(m)}
                     </option>
                   ))}
                 </select>
               </div>
-              <div className="sm:col-span-3">
-                <label className="field-label" htmlFor="service-name">
-                  Servicio
-                </label>
-                <input
-                  id="service-name"
-                  type="text"
-                  required
-                  value={sName}
-                  onChange={(e) => setSName(e.target.value)}
-                  placeholder="Nombre servicio..."
-                  className="field"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="field-label" htmlFor="service-day">
-                  Día de vencimiento
-                </label>
-                <input
-                  id="service-day"
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={sDueDay}
-                  onChange={(e) => setSDueDay(e.target.value)}
-                  placeholder="Día venc."
-                  title="Día aproximado de vencimiento (1-31)"
-                  className="field text-right tabular-nums"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="field-label" htmlFor="service-notes">
-                  Nota (opcional)
-                </label>
-                <input
-                  id="service-notes"
-                  type="text"
-                  value={sNotes}
-                  onChange={(e) => setSNotes(e.target.value)}
-                  placeholder="Nota / N° cliente"
-                  className="field"
-                />
-              </div>
-              <div className="sm:col-span-3">
-                <label className="field-label" htmlFor="service-frequency">
-                  Frecuencia
-                </label>
-                <select
-                  id="service-frequency"
-                  value={sFrequency}
-                  onChange={(e) => setSFrequency(Number(e.target.value))}
-                  className="field"
-                >
-                  {FREQUENCY_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {sFrequency > 1 && (
-                <div className="sm:col-span-3">
-                  <label className="field-label" htmlFor="service-start-month">
-                    Primer mes de pago
-                  </label>
-                  <select
-                    id="service-start-month"
-                    value={sStartMonth}
-                    onChange={(e) => setSStartMonth(Number(e.target.value))}
-                    className="field"
-                  >
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                      <option key={m} value={m}>
-                        {monthNameAR(m)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {sFrequency > 1 && (
-                <p className="sm:col-span-12 text-xs text-slate-600">
+            )}
+            {sFrequency > 1 && (
+              <p className="alert alert-accent p-3 text-xs sm:col-span-12">
+                <CalendarRange className="size-4 shrink-0" aria-hidden="true" />
+                <span className="text-ink">
                   Se carga en:{" "}
-                  <strong>
+                  <strong className="font-medium">
                     {scheduledMonths({
                       frequencyMonths: sFrequency,
                       startMonth: sStartMonth,
@@ -639,69 +653,62 @@ export function ConfigClient({
                       .join(", ")}
                   </strong>
                   . El importe habitual es el de cada factura.
-                </p>
-              )}
-              <div className="sm:col-span-3 flex items-center justify-between sm:justify-end gap-3">
-                <ToggleSwitch
-                  checked={sArrears}
-                  onChange={setSArrears}
-                  activeColor="indigo"
-                  label="Mes vencido"
-                />
-                <button
-                  type="submit"
-                  disabled={isPending || people.length === 0}
-                  className="min-h-11 px-3.5 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 shrink-0 cursor-pointer inline-flex items-center gap-1"
-                >
-                  <Plus className="w-4 h-4" />
-                  Agregar
-                </button>
-              </div>
-            </form>
-          </details>
-        </div>
+                </span>
+              </p>
+            )}
+            <div className="flex items-center justify-between gap-3 sm:col-span-3 sm:justify-end">
+              <ToggleSwitch
+                checked={sArrears}
+                onChange={setSArrears}
+                activeColor="indigo"
+                label="Mes vencido"
+              />
+              <button
+                type="submit"
+                disabled={isPending || people.length === 0}
+                className="btn-primary"
+              >
+                <Plus className="size-4" />
+                Agregar
+              </button>
+            </div>
+          </form>
+        </details>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs text-slate-600 border-b border-slate-200">
-              <tr className="uppercase">
-                <th className="text-left px-4 py-2.5 font-semibold">Persona</th>
-                <th className="text-left px-4 py-2.5 font-semibold">
+          <table className="data-table w-full text-sm">
+            <thead>
+              <tr>
+                <th className="px-4 py-2.5 text-left font-medium">Persona</th>
+                <th className="px-4 py-2.5 text-left font-medium">
                   Servicio / Nota
                 </th>
-                <th className="text-center px-3 py-2.5 font-semibold">
+                <th className="px-3 py-2.5 text-center font-medium">
                   Venc. aprox.
                 </th>
-                <th className="text-left px-3 py-2.5 font-semibold">
-                  Frecuencia
-                </th>
-                <th className="text-center px-3 py-2.5 font-semibold">
+                <th className="px-3 py-2.5 text-left font-medium">Frecuencia</th>
+                <th className="px-3 py-2.5 text-center font-medium">
                   Mes vencido
                 </th>
-                <th className="text-center px-3 py-2.5 font-semibold">
-                  Activo
-                </th>
-                <th className="w-12 px-3 py-2.5">
+                <th className="px-3 py-2.5 text-center font-medium">Activo</th>
+                <th className="w-12 px-3 py-1">
                   {hasFilters && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setFPerson("ALL");
-                        setFName("");
-                        setFArrears("ALL");
-                        setFActive("ALL");
-                      }}
+                      onClick={clearServiceFilters}
                       title="Limpiar filtros"
-                      className="text-rose-600 hover:text-rose-700 cursor-pointer"
+                      aria-label="Limpiar filtros"
+                      className="icon-button icon-button-danger"
                     >
-                      <FilterX className="w-4 h-4" />
+                      <FilterX className="size-4" />
                     </button>
                   )}
                 </th>
               </tr>
-              <tr className="border-t border-slate-200/80 bg-slate-100">
+              <tr className="border-t border-line bg-surface">
                 <th className="px-3 py-2">
                   <select
+                    aria-label="Filtrar por persona"
                     value={fPerson === "ALL" ? "ALL" : String(fPerson)}
                     onChange={(e) =>
                       setFPerson(
@@ -710,7 +717,7 @@ export function ConfigClient({
                           : Number(e.target.value),
                       )
                     }
-                    className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
+                    className="field min-h-9 px-2 py-1 text-xs font-normal"
                   >
                     <option value="ALL">Todas</option>
                     {people.map((p) => (
@@ -723,25 +730,27 @@ export function ConfigClient({
                 <th className="px-3 py-2">
                   <input
                     type="text"
+                    aria-label="Filtrar por nombre o póliza"
                     value={fName}
                     onChange={(e) => setFName(e.target.value)}
                     placeholder="Filtrar por nombre o póliza..."
-                    className="w-full px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400"
+                    className="field min-h-9 px-2.5 py-1 text-xs font-normal"
                   />
                 </th>
-                <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600">
+                <th className="px-3 py-2 text-center text-xs font-normal text-ink-3">
                   Día del mes
                 </th>
                 <th className="px-3 py-2"></th>
                 <th className="px-3 py-2">
                   <select
+                    aria-label="Filtrar por mes vencido"
                     value={fArrears}
                     onChange={(e) =>
                       setFArrears(
                         e.target.value as "ALL" | "ARREARS" | "CURRENT",
                       )
                     }
-                    className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
+                    className="field min-h-9 px-2 py-1 text-xs font-normal"
                   >
                     <option value="ALL">Todos</option>
                     <option value="ARREARS">Mes vencido</option>
@@ -750,13 +759,14 @@ export function ConfigClient({
                 </th>
                 <th className="px-3 py-2">
                   <select
+                    aria-label="Filtrar por estado"
                     value={fActive}
                     onChange={(e) =>
                       setFActive(
                         e.target.value as "ALL" | "ACTIVE" | "INACTIVE",
                       )
                     }
-                    className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
+                    className="field min-h-9 px-2 py-1 text-xs font-normal"
                   >
                     <option value="ALL">Todos</option>
                     <option value="ACTIVE">Activos</option>
@@ -767,33 +777,42 @@ export function ConfigClient({
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-200">
+            <tbody>
               {filteredServices.map((srv) => (
-                <tr key={srv.id} className="hover:bg-slate-50 transition">
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                <tr key={srv.id}>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <span className="inline-flex items-center gap-2 text-sm text-ink-2">
+                      <Avatar
+                        name={srv.person.name}
+                        seed={srv.person.id}
+                        size="xs"
+                      />
                       {srv.person.name}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`font-medium ${
-                        srv.isActive
-                          ? "text-slate-900"
-                          : "text-slate-600 line-through"
-                      }`}
-                    >
-                      {srv.name}
-                    </span>
-                    {srv.notes && (
-                      <span className="text-xs text-slate-600 ml-2">
-                        · {srv.notes}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span
+                        className={`font-medium ${
+                          srv.isActive ? "text-ink" : "text-ink-3 line-through"
+                        }`}
+                      >
+                        {srv.name}
                       </span>
+                      {!srv.isActive && <Tag tone="neutral">Inactivo</Tag>}
+                      {srv.paysInArrears && (
+                        <Tag tone="orange" icon={History}>
+                          Mes vencido
+                        </Tag>
+                      )}
+                    </div>
+                    {srv.notes && (
+                      <p className="mt-0.5 text-xs text-ink-3">{srv.notes}</p>
                     )}
                   </td>
-                  <td className="px-3 py-3 text-center text-xs text-slate-600">
-                    <div className="inline-flex items-center justify-center gap-1">
-                      <span className="text-slate-600">Día</span>
+                  <td className="px-3 py-3 text-center text-xs text-ink-3">
+                    <div className="inline-flex items-center justify-center gap-1.5">
+                      <span>Día</span>
                       <input
                         type="number"
                         min={1}
@@ -801,6 +820,7 @@ export function ConfigClient({
                         defaultValue={srv.defaultDueDay ?? ""}
                         placeholder="—"
                         title="Cambiar día de vencimiento mensual (1 a 31)"
+                        aria-label={`Día de vencimiento de ${srv.name}`}
                         onBlur={(e) => {
                           const raw = e.target.value.trim();
                           const nextVal = raw === "" ? null : Number(raw);
@@ -815,12 +835,12 @@ export function ConfigClient({
                             (e.target as HTMLInputElement).blur();
                           }
                         }}
-                        className="w-14 px-2 py-1 text-center rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-800 tabular-nums focus:outline-none focus:border-slate-900"
+                        className="field min-h-9 w-16 px-2 py-1 text-center text-xs font-medium tabular-nums"
                       />
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    <div className="flex min-w-40 flex-col gap-1">
+                    <div className="flex min-w-40 flex-col gap-1.5">
                       <select
                         value={srv.frequencyMonths}
                         disabled={isPending}
@@ -835,7 +855,7 @@ export function ConfigClient({
                             router.refresh();
                           })
                         }
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800"
+                        className="field min-h-9 px-2 py-1 text-xs font-medium"
                       >
                         {FREQUENCY_OPTIONS.map((o) => (
                           <option key={o.value} value={o.value}>
@@ -859,7 +879,7 @@ export function ConfigClient({
                                 router.refresh();
                               })
                             }
-                            className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
+                            className="field min-h-9 px-2 py-1 text-xs"
                           >
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(
                               (m) => (
@@ -869,11 +889,11 @@ export function ConfigClient({
                               ),
                             )}
                           </select>
-                          <span className="text-[0.6875rem] text-slate-600">
+                          <Tag tone="iris" icon={CalendarRange} className="self-start">
                             {scheduledMonths(srv)
                               .map((m) => monthNameAR(m).slice(0, 3))
                               .join(" · ")}
-                          </span>
+                          </Tag>
                         </>
                       )}
                     </div>
@@ -914,6 +934,7 @@ export function ConfigClient({
                     <button
                       type="button"
                       disabled={isPending}
+                      title={`Eliminar ${srv.name} del catálogo`}
                       aria-label={`Eliminar ${srv.name} del catálogo`}
                       onClick={() => {
                         if (!confirm(`¿Eliminar "${srv.name}" del catálogo?`))
@@ -923,15 +944,15 @@ export function ConfigClient({
                           router.refresh();
                         });
                       }}
-                      className="icon-button hover:text-rose-700 hover:bg-rose-50"
+                      className="icon-button icon-button-danger"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="size-4" />
                     </button>
                   </td>
                 </tr>
               ))}
               {filteredServices.length === 0 && (
-                <tr>
+                <tr className="hover:bg-transparent">
                   <td colSpan={7}>
                     <EmptyState
                       title={
@@ -949,12 +970,7 @@ export function ConfigClient({
                           <button
                             type="button"
                             className="btn-secondary"
-                            onClick={() => {
-                              setFPerson("ALL");
-                              setFName("");
-                              setFArrears("ALL");
-                              setFActive("ALL");
-                            }}
+                            onClick={clearServiceFilters}
                           >
                             Limpiar filtros
                           </button>
@@ -981,360 +997,388 @@ export function ConfigClient({
           onClose={() => setEditingPerson(null)}
           busy={isPending}
         >
-          <fieldset
-            disabled={isPending}
-            className="min-w-0 p-4 sm:p-6 space-y-5"
-          >
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3
-                id="edit-person-title"
-                className="text-base font-semibold text-slate-900"
-              >
-                Configurar persona · {liveEditingPerson.name}
-              </h3>
+          <fieldset disabled={isPending} className="min-w-0">
+            <div className="flex items-center justify-between gap-3 border-b border-line bg-subtle px-4 py-3 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar
+                  name={liveEditingPerson.name}
+                  seed={liveEditingPerson.id}
+                  size="sm"
+                />
+                <h3
+                  id="edit-person-title"
+                  className="min-w-0 truncate font-display text-lg font-medium text-ink"
+                >
+                  Configurar persona · {liveEditingPerson.name}
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setEditingPerson(null)}
                 aria-label="Cerrar edición de persona"
-                className="icon-button"
+                title="Cerrar"
+                className="icon-button -mr-2"
               >
-                <X className="w-5 h-5" />
+                <X className="size-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSavePerson} className="space-y-5">
-              {/* 1. Datos básicos */}
-              <div className="space-y-3">
-                <h4 className="text-xs uppercase tracking-wider font-bold text-slate-700">
-                  1. Datos generales
-                </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
-                      Nombre
+            <div className="space-y-6 p-4 sm:p-6">
+              <form onSubmit={handleSavePerson} className="space-y-6">
+                {/* 1. Datos básicos */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-ink">
+                    Datos generales
+                  </h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <label htmlFor="ep-name" className="field-label">
+                        Nombre
+                      </label>
+                      <input
+                        id="ep-name"
+                        type="text"
+                        required
+                        value={epName}
+                        onChange={(e) => setEpName(e.target.value)}
+                        className="field"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="ep-currency" className="field-label">
+                        Moneda base
+                      </label>
+                      <select
+                        id="ep-currency"
+                        value={epCurrency}
+                        onChange={(e) =>
+                          setEpCurrency(e.target.value as "ARS" | "USD")
+                        }
+                        className="field"
+                      >
+                        <option value="ARS">ARS ($)</option>
+                        <option value="USD">USD (US$)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="ep-notes" className="field-label">
+                      Descripción / Notas
                     </label>
+                    <input
+                      id="ep-notes"
+                      type="text"
+                      value={epNotes}
+                      onChange={(e) => setEpNotes(e.target.value)}
+                      placeholder="Ej: Cuentas Cocos y Balanz + servicios..."
+                      className="field"
+                    />
+                  </div>
+
+                  <ToggleSwitch
+                    checked={epManaged}
+                    onChange={setEpManaged}
+                    label="Llevar cuenta y saldo administrado en Inicio"
+                  />
+                </div>
+
+                {/* 2. Acceso Familiar y Contraseña */}
+                <div className="space-y-3 border-t border-line pt-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="flex items-center gap-2 text-sm font-medium text-ink">
+                      <KeyRound className="size-4 text-ink-3" aria-hidden="true" />
+                      Acceso y contraseña para ver sus datos
+                    </h4>
+                    <ToggleSwitch
+                      checked={epShareEnabled}
+                      onChange={setEpShareEnabled}
+                      label="Habilitado"
+                    />
+                  </div>
+
+                  {epShareEnabled && (
+                    <div className="space-y-4 rounded-panel border border-iris-line bg-iris-soft/50 p-4">
+                      <div>
+                        <label htmlFor="ep-password" className="field-label">
+                          Contraseña de {epName || liveEditingPerson.name}
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="ep-password"
+                            type={showPass ? "text" : "password"}
+                            value={epPassword}
+                            onChange={(e) => setEpPassword(e.target.value)}
+                            placeholder="Escribí una clave (ej: mama2026 o 4821)..."
+                            className="field pr-12"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPass((v) => !v)}
+                            title={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                            aria-label={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                            className="icon-button absolute right-0 top-1/2 -translate-y-1/2"
+                          >
+                            {showPass ? (
+                              <EyeOff className="size-4" />
+                            ) : (
+                              <Eye className="size-4" />
+                            )}
+                          </button>
+                        </div>
+                        <p className="mt-1.5 text-xs text-ink-2">
+                          Con esta contraseña puede entrar en{" "}
+                          <strong className="font-medium text-ink">
+                            /login → Acceso Familiar
+                          </strong>{" "}
+                          escribiendo su nombre (
+                          <strong className="font-medium text-ink">{epName}</strong>)
+                          y su clave. Si la dejás vacía, podrá entrar directo solo
+                          con el link privado.
+                        </p>
+                      </div>
+
+                      {shareUrl && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <label htmlFor="ep-share-url" className="text-sm font-medium text-ink-2">
+                              Enlace directo (WhatsApp)
+                            </label>
+                            <button
+                              type="button"
+                              onClick={handleRegenerateLink}
+                              className="btn-ghost min-h-9 px-2 text-xs hover:bg-danger-soft hover:text-danger-ink"
+                            >
+                              <RefreshCw className="size-3.5" />
+                              Cambiar link
+                            </button>
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              id="ep-share-url"
+                              type="text"
+                              readOnly
+                              value={shareUrl}
+                              className="field min-h-10 flex-1 text-xs text-ink-2"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(shareUrl);
+                                setCopiedLink(true);
+                                setTimeout(() => setCopiedLink(false), 2000);
+                              }}
+                              className="btn-secondary min-h-10 bg-surface px-3 hover:bg-muted"
+                            >
+                              {copiedLink ? (
+                                <Check className="size-4 text-success" />
+                              ) : (
+                                <Copy className="size-4" />
+                              )}
+                              {copiedLink ? "Copiado" : "Copiar"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Botones guardar datos principales */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
+                  {!liveEditingPerson.isOwn ? (
+                    <button
+                      type="button"
+                      onClick={handleDeletePerson}
+                      className="btn-ghost px-3 text-danger-ink hover:bg-danger-soft hover:text-danger-ink"
+                    >
+                      <Trash2 className="size-4" />
+                      Eliminar persona
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingPerson(null)}
+                      className="btn-ghost"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isPending}
+                      className="btn-primary"
+                    >
+                      Guardar cambios
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              {/* 3. Administración de Subcuentas / Billeteras */}
+              {epManaged && (
+                <div className="space-y-3 border-t border-line pt-5">
+                  <h4 className="flex items-center gap-2 text-sm font-medium text-ink">
+                    <Wallet className="size-4 text-ink-3" aria-hidden="true" />
+                    Subcuentas / Billeteras
+                    <Tag tone="neutral">{liveEditingPerson.accounts.length}</Tag>
+                  </h4>
+
+                  <div className="divide-y divide-line overflow-hidden rounded-panel border border-line text-sm">
+                    {liveEditingPerson.accounts.map((acc) => (
+                      <div
+                        key={acc.id}
+                        className="flex items-center justify-between gap-2 bg-surface px-3 py-2"
+                      >
+                        {editingAccId === acc.id ? (
+                          <div className="flex flex-1 flex-wrap items-center gap-2 py-1">
+                            <input
+                              type="text"
+                              aria-label="Nombre de la subcuenta"
+                              value={editAccName}
+                              onChange={(e) => setEditAccName(e.target.value)}
+                              className="field min-h-10 w-32"
+                            />
+                            <div className="w-40">
+                              <MoneyInput
+                                value={editAccInitial}
+                                onChange={setEditAccInitial}
+                                currency={acc.currency}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveAcc(acc.id)}
+                              className="btn-primary min-h-10 px-3"
+                            >
+                              OK
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingAccId(null)}
+                              className="btn-ghost min-h-10 px-3"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="min-w-0 tabular-nums">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium text-ink">
+                                  {acc.name}
+                                </span>
+                                {acc.isDefault && (
+                                  <Tag tone="accent" icon={Star}>
+                                    Predeterminada
+                                  </Tag>
+                                )}
+                              </div>
+                              <p className="mt-0.5 text-xs text-ink-3">
+                                Inicial:{" "}
+                                {formatMoney(acc.initialBalance, acc.currency)} ·
+                                Actual:{" "}
+                                <strong
+                                  className={`font-medium ${Number(acc.balance) < -0.004 ? "text-danger-ink" : "text-ink"}`}
+                                >
+                                  {formatMoney(acc.balance, acc.currency)}
+                                </strong>
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-center">
+                              {!acc.isDefault && acc.isActive && (
+                                <button
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={() =>
+                                    startTransition(async () => {
+                                      await setDefaultAccountAction(acc.id);
+                                      router.refresh();
+                                    })
+                                  }
+                                  title="Usar como cuenta predeterminada"
+                                  aria-label={`Usar ${acc.name} como cuenta predeterminada`}
+                                  className="icon-button hover:bg-accent-soft hover:text-accent-ink"
+                                >
+                                  <Star className="size-4" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => startEditAcc(acc)}
+                                title="Editar nombre o saldo inicial"
+                                aria-label={`Editar ${acc.name}`}
+                                className="icon-button"
+                              >
+                                <Pencil className="size-4" />
+                              </button>
+                              {liveEditingPerson.accounts.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (
+                                      !confirm(
+                                        `¿Eliminar la subcuenta "${acc.name}" y sus movimientos?`,
+                                      )
+                                    ) {
+                                      return;
+                                    }
+                                    startTransition(async () => {
+                                      await deleteAccountAction(acc.id);
+                                      setEditingPerson(null);
+                                      router.refresh();
+                                    });
+                                  }}
+                                  title="Eliminar subcuenta"
+                                  aria-label={`Eliminar subcuenta ${acc.name}`}
+                                  className="icon-button icon-button-danger"
+                                >
+                                  <Trash2 className="size-4" />
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Agregar otra subcuenta rápido */}
+                  <form
+                    onSubmit={handleAddSubaccountInModal}
+                    className="flex flex-wrap items-center gap-2 pt-1"
+                  >
                     <input
                       type="text"
                       required
-                      value={epName}
-                      onChange={(e) => setEpName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+                      aria-label="Nombre de la nueva subcuenta"
+                      value={newSubName}
+                      onChange={(e) => setNewSubName(e.target.value)}
+                      placeholder="Nueva subcuenta (ej: Mercado Pago)"
+                      className="field min-w-36 flex-1"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
-                      Moneda base
-                    </label>
-                    <select
-                      value={epCurrency}
-                      onChange={(e) =>
-                        setEpCurrency(e.target.value as "ARS" | "USD")
-                      }
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
-                    >
-                      <option value="ARS">ARS ($)</option>
-                      <option value="USD">USD (US$)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Descripción / Notas
-                  </label>
-                  <input
-                    type="text"
-                    value={epNotes}
-                    onChange={(e) => setEpNotes(e.target.value)}
-                    placeholder="Ej: Cuentas Cocos y Balanz + servicios..."
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
-                  />
-                </div>
-
-                <ToggleSwitch
-                  checked={epManaged}
-                  onChange={setEpManaged}
-                  label="Llevar cuenta y saldo administrado en Inicio"
-                />
-              </div>
-
-              {/* 2. Acceso Familiar y Contraseña */}
-              <div className="space-y-3 pt-3 border-t border-slate-200">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs uppercase tracking-wider font-bold text-slate-700">
-                    2. Acceso y contraseña para ver sus datos
-                  </h4>
-                  <ToggleSwitch
-                    checked={epShareEnabled}
-                    onChange={setEpShareEnabled}
-                    label="Habilitado"
-                  />
-                </div>
-
-                {epShareEnabled && (
-                  <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 space-y-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">
-                        Contraseña de {epName || liveEditingPerson.name}
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPass ? "text" : "password"}
-                          value={epPassword}
-                          onChange={(e) => setEpPassword(e.target.value)}
-                          placeholder="Escribí una clave (ej: mama2026 o 4821)..."
-                          className="w-full pl-3 pr-10 py-2 rounded-lg border border-slate-300 bg-white text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPass((v) => !v)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 cursor-pointer"
-                        >
-                          {showPass ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
-                            <Eye className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                      <p className="text-xs text-slate-600 mt-1">
-                        Con esta contraseña puede entrar en{" "}
-                        <strong>/login → Acceso Familiar</strong> escribiendo su
-                        nombre (<strong>{epName}</strong>) y su clave. Si la
-                        dejás vacía, podrá entrar directo solo con el link
-                        privado.
-                      </p>
+                    <div className="w-40">
+                      <MoneyInput
+                        value={newSubInitial}
+                        onChange={setNewSubInitial}
+                        currency={epCurrency}
+                      />
                     </div>
-
-                    {shareUrl && (
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-medium text-slate-700">
-                            Enlace directo (WhatsApp)
-                          </label>
-                          <button
-                            type="button"
-                            onClick={handleRegenerateLink}
-                            className="inline-flex items-center gap-1 text-[0.6875rem] text-slate-600 hover:text-rose-600 cursor-pointer"
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                            Cambiar link
-                          </button>
-                        </div>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            readOnly
-                            value={shareUrl}
-                            className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-600"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(shareUrl);
-                              setCopiedLink(true);
-                              setTimeout(() => setCopiedLink(false), 2000);
-                            }}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-medium cursor-pointer"
-                          >
-                            {copiedLink ? (
-                              <Check className="w-3.5 h-3.5" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                            {copiedLink ? "Copiado" : "Copiar"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Botones guardar datos principales */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                {!liveEditingPerson.isOwn ? (
-                  <button
-                    type="button"
-                    onClick={handleDeletePerson}
-                    className="text-xs font-medium text-rose-600 hover:text-rose-700 cursor-pointer"
-                  >
-                    Eliminar persona
-                  </button>
-                ) : (
-                  <span />
-                )}
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingPerson(null)}
-                    className="min-h-11 px-3.5 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isPending}
-                    className="min-h-11 px-4 py-2 rounded-xl text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
-                  >
-                    Guardar cambios
-                  </button>
-                </div>
-              </div>
-            </form>
-
-            {/* 3. Administración de Subcuentas / Billeteras */}
-            {epManaged && (
-              <div className="space-y-3 pt-4 border-t border-slate-200">
-                <h4 className="text-xs uppercase tracking-wider font-bold text-slate-700">
-                  3. Subcuentas / Billeteras (
-                  {liveEditingPerson.accounts.length})
-                </h4>
-
-                <div className="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden text-xs">
-                  {liveEditingPerson.accounts.map((acc) => (
-                    <div
-                      key={acc.id}
-                      className="p-2.5 bg-white flex items-center justify-between gap-2"
+                    <button
+                      type="submit"
+                      disabled={isPending}
+                      className="btn-secondary"
                     >
-                      {editingAccId === acc.id ? (
-                        <div className="flex-1 flex flex-wrap items-center gap-2">
-                          <input
-                            type="text"
-                            value={editAccName}
-                            onChange={(e) => setEditAccName(e.target.value)}
-                            className="px-2 py-1 rounded border border-slate-300 text-xs w-28"
-                          />
-                          <div className="w-36">
-                            <MoneyInput
-                              value={editAccInitial}
-                              onChange={setEditAccInitial}
-                              currency={acc.currency}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleSaveAcc(acc.id)}
-                            className="px-2.5 py-1 rounded bg-slate-900 text-white font-medium cursor-pointer"
-                          >
-                            OK
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingAccId(null)}
-                            className="px-2 py-1 text-slate-600 cursor-pointer"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="tabular-nums">
-                            <span className="font-semibold text-slate-900">
-                              {acc.name}
-                            </span>{" "}
-                            {acc.isDefault && (
-                              <span className="mr-1 inline-flex items-center gap-1 rounded bg-indigo-50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-indigo-800">
-                                <Star className="h-3 w-3" />
-                                Predeterminada
-                              </span>
-                            )}
-                            <span className="text-slate-600">
-                              · Inicial:{" "}
-                              {formatMoney(acc.initialBalance, acc.currency)} ·
-                              Actual:{" "}
-                            </span>
-                            <strong className="text-slate-800">
-                              {formatMoney(acc.balance, acc.currency)}
-                            </strong>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {!acc.isDefault && acc.isActive && (
-                              <button
-                                type="button"
-                                disabled={isPending}
-                                onClick={() =>
-                                  startTransition(async () => {
-                                    await setDefaultAccountAction(acc.id);
-                                    router.refresh();
-                                  })
-                                }
-                                title="Usar como cuenta predeterminada"
-                                aria-label={`Usar ${acc.name} como cuenta predeterminada`}
-                                className="p-1.5 rounded hover:bg-indigo-50 text-slate-500 hover:text-indigo-700 cursor-pointer"
-                              >
-                                <Star className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => startEditAcc(acc)}
-                              title="Editar nombre o saldo inicial"
-                              className="p-1.5 rounded hover:bg-slate-100 text-slate-500 cursor-pointer"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            {liveEditingPerson.accounts.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (
-                                    !confirm(
-                                      `¿Eliminar la subcuenta "${acc.name}" y sus movimientos?`,
-                                    )
-                                  ) {
-                                    return;
-                                  }
-                                  startTransition(async () => {
-                                    await deleteAccountAction(acc.id);
-                                    setEditingPerson(null);
-                                    router.refresh();
-                                  });
-                                }}
-                                title="Eliminar subcuenta"
-                                className="p-1.5 rounded hover:bg-rose-50 text-slate-500 hover:text-rose-600 cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
+                      <Plus className="size-4" />
+                      Subcuenta
+                    </button>
+                  </form>
                 </div>
-
-                {/* Agregar otra subcuenta rápido */}
-                <form
-                  onSubmit={handleAddSubaccountInModal}
-                  className="flex flex-wrap items-center gap-2 pt-1"
-                >
-                  <input
-                    type="text"
-                    required
-                    value={newSubName}
-                    onChange={(e) => setNewSubName(e.target.value)}
-                    placeholder="Nueva subcuenta (ej: Mercado Pago)"
-                    className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-slate-300 text-xs"
-                  />
-                  <div className="w-36">
-                    <MoneyInput
-                      value={newSubInitial}
-                      onChange={setNewSubInitial}
-                      currency={epCurrency}
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isPending}
-                    className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold cursor-pointer"
-                  >
-                    + Subcuenta
-                  </button>
-                </form>
-              </div>
-            )}
+              )}
+            </div>
           </fieldset>
         </Modal>
       )}

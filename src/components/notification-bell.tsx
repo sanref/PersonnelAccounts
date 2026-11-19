@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, BellRing, Check, Settings } from "lucide-react";
+import { ArrowRight, Bell, BellRing, Check, Settings } from "lucide-react";
+import { Avatar, Tag, type Tone } from "@/components/cui";
 import type { DueAlertItem, PublicNotificationSettings } from "@/lib/notifications";
 import { formatDateAR, formatMoney } from "@/lib/format";
 import {
@@ -99,13 +100,13 @@ export function NotificationBell({
         title="Notificaciones de vencimientos"
         aria-label="Notificaciones de vencimientos"
         aria-expanded={open}
-        className="relative inline-flex items-center justify-center min-h-11 min-w-11 px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+        className={`icon-button relative ${open ? "bg-muted text-ink" : ""}`}
       >
-        <Bell className="w-4 h-4" />
+        <Bell className="size-4" />
         {count > 0 && (
           <span
-            className={`absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full text-[0.6875rem] font-bold text-white flex items-center justify-center tabular-nums ${
-              hasUrgent ? "bg-rose-600" : "bg-amber-500"
+            className={`absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[0.6875rem] font-medium text-white tabular-nums ring-2 ring-surface ${
+              hasUrgent ? "bg-danger" : "bg-warning"
             }`}
           >
             {count > 99 ? "99+" : count}
@@ -114,13 +115,14 @@ export function NotificationBell({
       </button>
 
       {open && (
-        <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-full sm:mt-2 sm:w-96 z-50 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-2 bg-slate-50">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
+        <div className="cui-pop fixed inset-x-3 top-16 z-50 overflow-hidden rounded-surface border border-line bg-surface shadow-float sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96">
+          <div className="flex items-center justify-between gap-2 border-b border-line bg-subtle px-4 py-3">
+            <div className="min-w-0">
+              <h3 className="flex items-center gap-2 text-sm font-medium text-ink">
+                <Bell className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
                 Vencimientos pendientes
               </h3>
-              <p className="text-xs text-slate-600">
+              <p className="mt-0.5 text-xs text-ink-3">
                 {settings.enabled
                   ? `Aviso diario a las ${settings.notifyTime} hs`
                   : "Avisos automáticos pausados"}
@@ -129,65 +131,65 @@ export function NotificationBell({
             <Link
               href="/config#notificaciones"
               onClick={() => setOpen(false)}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition"
+              className="btn-ghost min-h-9 px-2.5"
             >
-              <Settings className="w-3.5 h-3.5" />
+              <Settings className="size-4" />
               <span>Horario</span>
             </Link>
           </div>
 
           {pushSupported && !subscribedHere && (
-            <div className="p-3 bg-indigo-50/80 border-b border-indigo-100 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs text-indigo-950 font-medium">
-                  Recibí avisos Push en este dispositivo
+            <div className="border-b border-line p-3">
+              <div className="alert alert-accent items-center p-3">
+                <BellRing className="size-4 shrink-0" aria-hidden="true" />
+                <p className="min-w-0 flex-1 text-xs font-medium text-ink">
+                  Recibí avisos push en este dispositivo
                 </p>
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={handleQuickSubscribe}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 shrink-0 cursor-pointer"
+                  className="btn-primary min-h-9 px-3"
                 >
-                  <BellRing className="w-3.5 h-3.5" />
                   {isPending ? "Activando..." : "Activar"}
                 </button>
               </div>
-              {subError && <p className="text-[0.6875rem] text-rose-600">{subError}</p>}
+              {subError && (
+                <p className="mt-2 text-xs text-danger-ink">{subError}</p>
+              )}
             </div>
           )}
 
-          <div className="max-h-80 overflow-y-auto divide-y divide-slate-200">
+          <div className="max-h-80 divide-y divide-line overflow-y-auto">
             {alerts.length === 0 ? (
-              <div className="p-6 text-center space-y-1">
-                <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-                  <Check className="w-4 h-4" />
+              <div className="space-y-1 p-6 text-center">
+                <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full border border-success-line bg-success-soft text-success">
+                  <Check className="size-4" />
                 </div>
-                <p className="text-sm font-medium text-slate-800">
-                  Todo al día
-                </p>
-                <p className="text-xs text-slate-600">
+                <p className="text-sm font-medium text-ink">Todo al día</p>
+                <p className="text-xs text-ink-3">
                   No hay servicios próximos a vencer ni pendientes vencidos.
                 </p>
               </div>
             ) : (
               alerts.map((item) => {
-                const badge =
+                const badge: { label: string; tone: Tone } =
                   item.urgency === "OVERDUE"
                     ? {
                         label: `Venció ${formatDateAR(item.dueDate).slice(0, 5)}`,
-                        cls: "bg-rose-100 text-rose-800",
+                        tone: "danger",
                       }
                     : item.urgency === "DUE_TODAY"
                     ? {
                         label: "Vence hoy",
-                        cls: "bg-amber-200 text-amber-950",
+                        tone: "warning",
                       }
                     : {
                         label:
                           item.diffDays === 1
                             ? "Mañana"
                             : `En ${item.diffDays} días · ${formatDateAR(item.dueDate).slice(0, 5)}`,
-                        cls: "bg-indigo-50 text-indigo-700",
+                        tone: "accent",
                       };
 
                 return (
@@ -195,43 +197,37 @@ export function NotificationBell({
                     key={item.id}
                     href={`/pagos?periodo=${item.period}`}
                     onClick={() => setOpen(false)}
-                    className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 transition"
+                    className="flex items-center gap-3 px-4 py-3 transition-colors duration-100 hover:bg-subtle"
                   >
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-sm text-slate-900 truncate">
-                          {item.concept}
-                        </span>
-                        <span className="text-[0.6875rem] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
-                          {item.personName}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 tabular-nums">
+                    <Avatar name={item.personName} seed={item.personId} size="sm" />
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <p className="truncate text-sm font-medium text-ink">
+                        {item.concept}
+                      </p>
+                      <p className="truncate text-xs text-ink-3 tabular-nums">
+                        {item.personName} ·{" "}
                         {item.amount !== null && item.amount !== ""
                           ? formatMoney(item.amount, "ARS")
                           : "Monto pendiente de carga"}
                       </p>
                     </div>
-                    <span
-                      className={`shrink-0 text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}
-                    >
-                      {badge.label}
-                    </span>
+                    <Tag tone={badge.tone}>{badge.label}</Tag>
                   </Link>
                 );
               })
             )}
           </div>
 
-          <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs">
+          <div className="flex items-center justify-between gap-2 border-t border-line bg-subtle px-4 py-2 text-xs">
             <Link
               href="/pagos"
               onClick={() => setOpen(false)}
-              className="font-semibold text-slate-800 hover:underline"
+              className="inline-flex min-h-9 items-center gap-1 rounded-control font-medium text-accent-ink hover:underline"
             >
-              Ir a Pagos Mensuales →
+              Ir a pagos mensuales
+              <ArrowRight className="size-3.5" />
             </Link>
-            <span className="text-[0.6875rem] text-slate-600">
+            <span className="text-ink-3">
               Anticipación: {settings.daysBefore}d
             </span>
           </div>

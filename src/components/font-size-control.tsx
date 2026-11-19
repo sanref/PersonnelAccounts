@@ -90,7 +90,7 @@ export function FontSizeControl({
       <div
         role="group"
         aria-label="Tamaño de letra"
-        className="md:hidden fixed bottom-19 right-3 z-30 inline-flex items-center bg-white/95 backdrop-blur border border-slate-300 shadow-md rounded-full p-0.5 text-slate-800"
+        className="md:hidden fixed bottom-19 right-3 z-30 inline-flex items-center rounded-full border border-line bg-surface/95 p-0.5 text-ink shadow-float backdrop-blur-md"
       >
         <button
           type="button"
@@ -98,7 +98,7 @@ export function FontSizeControl({
           disabled={!canDecrease}
           title="Achicar letra"
           aria-label="Achicar letra"
-          className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-full text-xs font-bold hover:bg-slate-100 active:bg-slate-200 disabled:opacity-35 disabled:pointer-events-none transition cursor-pointer"
+          className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-full text-xs font-medium transition-colors hover:bg-muted active:bg-muted-hover disabled:pointer-events-none cursor-pointer"
         >
           A−
         </button>
@@ -107,7 +107,7 @@ export function FontSizeControl({
           onClick={resetDefault}
           title={`Tamaño actual: ${LABELS[level]} (tocar para restablecer)`}
           aria-label={`Tamaño actual: ${LABELS[level]}`}
-          className="px-1.5 min-h-11 inline-flex items-center justify-center text-[0.6875rem] font-semibold text-slate-500 select-none cursor-pointer"
+          className="px-1.5 min-h-11 inline-flex items-center justify-center text-[0.6875rem] font-medium text-ink-3 select-none cursor-pointer"
         >
           {mounted ? (level === "muy-grande" ? "A++" : level === "grande" ? "A+" : "A") : "A"}
         </button>
@@ -117,7 +117,7 @@ export function FontSizeControl({
           disabled={!canIncrease}
           title="Agrandar letra"
           aria-label="Agrandar letra"
-          className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-full text-sm font-bold hover:bg-slate-100 active:bg-slate-200 disabled:opacity-35 disabled:pointer-events-none transition cursor-pointer"
+          className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-full text-sm font-medium transition-colors hover:bg-muted active:bg-muted-hover disabled:pointer-events-none cursor-pointer"
         >
           A+
         </button>
@@ -130,7 +130,7 @@ export function FontSizeControl({
       role="group"
       aria-label="Tamaño de letra"
       title={`Tamaño de letra: ${LABELS[level]}`}
-      className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-slate-700"
+      className="segmented"
     >
       <button
         type="button"
@@ -138,7 +138,7 @@ export function FontSizeControl({
         disabled={!canDecrease}
         title="Achicar letra"
         aria-label="Achicar letra"
-        className="min-h-9 min-w-8 px-2 inline-flex items-center justify-center rounded-md text-xs font-bold hover:bg-white hover:text-slate-900 disabled:opacity-35 disabled:pointer-events-none transition cursor-pointer"
+        className="segmented-item min-h-9 min-w-9 px-2 text-xs hover:bg-surface disabled:pointer-events-none"
       >
         A−
       </button>
@@ -147,7 +147,7 @@ export function FontSizeControl({
         onClick={resetDefault}
         title={`Tamaño: ${LABELS[level]} (clic para restablecer)`}
         aria-label={`Tamaño actual: ${LABELS[level]}`}
-        className="min-h-9 px-1.5 inline-flex items-center justify-center text-[0.6875rem] font-semibold text-slate-500 hover:text-slate-900 select-none cursor-pointer"
+        className="segmented-item min-h-9 bg-surface px-2 text-[0.6875rem] text-ink shadow-xs select-none"
       >
         A
       </button>
@@ -157,7 +157,7 @@ export function FontSizeControl({
         disabled={!canIncrease}
         title="Agrandar letra"
         aria-label="Agrandar letra"
-        className="min-h-9 min-w-8 px-2 inline-flex items-center justify-center rounded-md text-sm font-bold hover:bg-white hover:text-slate-900 disabled:opacity-35 disabled:pointer-events-none transition cursor-pointer"
+        className="segmented-item min-h-9 min-w-9 px-2 text-sm hover:bg-surface disabled:pointer-events-none"
       >
         A+
       </button>

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  ArrowUpRight,
   CalendarDays,
   CheckCircle2,
-  Share2,
+  CircleDollarSign,
+  Clock3,
+  Receipt,
   Wallet,
-  ArrowUpRight,
 } from "lucide-react";
 import { getDebtBalances, getMonthlyPaymentsData } from "@/lib/queries";
 import {
@@ -17,6 +19,16 @@ import {
 } from "@/lib/format";
 import { EmptyState } from "@/components/ui-feedback";
 import { DebtsPanel } from "@/components/debts-panel";
+import {
+  Avatar,
+  CarryOverTag,
+  PanelHeader,
+  PendingTag,
+  ProgressBar,
+  SharedTag,
+  Stat,
+  Tag,
+} from "@/components/cui";
 
 export default async function DashboardPage() {
   const period = currentPeriodISO();
@@ -50,15 +62,19 @@ export default async function DashboardPage() {
   const monthPaid = items
     .filter((i) => i.status === "PAID")
     .reduce((sum, i) => sum + Number(i.amount ?? 0), 0);
+  const monthPending = monthTotal - monthPaid;
+  const paidCount = items.filter((i) => i.status === "PAID").length;
+  const pendingCount = items.filter((i) => i.status === "PENDING").length;
+  const paidPct =
+    monthTotal > 0 ? Math.round((monthPaid / monthTotal) * 100) : 0;
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="space-y-1">
-          <p className="eyebrow">Tu administración, en orden</p>
           <h1 className="page-title">Resumen general</h1>
-          <p className="text-sm text-slate-600">
-            Tus cuentas y pagos de{" "}
+          <p className="text-sm text-ink-2">
+            Cuentas y pagos de{" "}
             <span className="tabular-nums">
               {formatPeriodLabel(period).toLowerCase()}
             </span>
@@ -67,62 +83,87 @@ export default async function DashboardPage() {
         </div>
         <Link
           href={`/pagos?periodo=${period}`}
-          className="btn-primary self-start"
+          className="btn-primary self-start sm:self-auto"
         >
           <CalendarDays className="size-4" />
           Gestionar pagos
         </Link>
       </div>
 
-      <section
-        aria-label="Pagos del mes"
-        className="panel grid divide-y divide-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0"
-      >
-        {[
-          {
-            label: "Gastos del mes",
-            amount: monthTotal,
-            hint: `${items.length} conceptos · ARS`,
-          },
-          {
-            label: "Pagado este mes",
-            amount: monthPaid,
-            hint: "Pagos registrados · ARS",
-          },
-          {
-            label: "Pendiente este mes",
-            amount: monthTotal - monthPaid,
-            hint: "Sin incluir meses anteriores · ARS",
-          },
-        ].map((metric) => (
-          <div
-            key={metric.label}
-            className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-4 py-3 sm:block sm:p-6"
-          >
-            <p className="text-xs font-medium text-slate-600">{metric.label}</p>
-            <p className="break-words text-right text-lg font-semibold tracking-tight tabular-nums sm:mt-2 sm:text-left sm:text-2xl">
-              {formatMoney(metric.amount, "ARS")}
-            </p>
-            <p className="hidden text-xs text-slate-600 tabular-nums sm:mt-1 sm:block">
-              {metric.hint}
-            </p>
-          </div>
-        ))}
+      <section aria-label="Pagos del mes" className="grid gap-4 sm:grid-cols-3">
+        <div className="panel">
+          <Stat
+            label="Gastos del mes"
+            icon={Receipt}
+            value={formatMoney(monthTotal, "ARS")}
+            footer={
+              <p className="text-xs text-ink-3 tabular-nums">
+                {items.length} conceptos cargados
+              </p>
+            }
+          />
+        </div>
+        <div className="panel">
+          <Stat
+            label="Pagado este mes"
+            icon={CircleDollarSign}
+            value={formatMoney(monthPaid, "ARS")}
+            valueClassName="text-success-ink"
+            footer={
+              <div className="space-y-2">
+                <ProgressBar
+                  value={monthPaid}
+                  max={monthTotal}
+                  tone="success"
+                  label="Avance de pagos del mes"
+                />
+                <p className="text-xs text-ink-3 tabular-nums">
+                  {paidPct}% del total · {paidCount} pagados
+                </p>
+              </div>
+            }
+          />
+        </div>
+        <div className="panel">
+          <Stat
+            label="Pendiente este mes"
+            icon={Clock3}
+            value={formatMoney(monthPending, "ARS")}
+            valueClassName={monthPending > 0.004 ? "text-warning-ink" : ""}
+            footer={
+              <div className="flex flex-wrap items-center gap-2">
+                {pendingCount > 0 ? (
+                  <PendingTag>{pendingCount} por pagar</PendingTag>
+                ) : (
+                  <Tag tone="success" icon={CheckCircle2}>
+                    Todo pagado
+                  </Tag>
+                )}
+                <span className="text-xs text-ink-3">
+                  sin meses anteriores
+                </span>
+              </div>
+            }
+          />
+        </div>
       </section>
 
       <section aria-labelledby="accounts-heading" className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 id="accounts-heading" className="text-base font-medium">
+            <h2
+              id="accounts-heading"
+              className="font-display text-lg font-medium"
+            >
               Cuentas administradas
             </h2>
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="mt-0.5 text-sm text-ink-3">
               Elegí una persona para ver su saldo y movimientos.
             </p>
           </div>
-          <Link href="/config#personas" className="btn-ghost px-2 text-xs">
+          <Link href="/config#personas" className="btn-ghost px-3">
             Administrar personas
-            <ArrowUpRight className="size-3" />
+            <ArrowUpRight className="size-4" />
           </Link>
         </div>
         {managedPeople.length === 0 ? (
@@ -131,7 +172,7 @@ export default async function DashboardPage() {
               title="Tus cuentas empiezan acá"
               description="Agregá una persona y su primera cuenta para llevar el control de sus movimientos."
               action={
-                <Link href="/config#personas" className="btn-secondary">
+                <Link href="/config#personas" className="btn-primary">
                   Agregar persona
                 </Link>
               }
@@ -139,121 +180,129 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {managedPeople.map((p) => (
-              <Link
-                key={p.id}
-                href={`/personas/${p.slug}`}
-                className="panel group flex min-w-0 flex-col justify-between gap-5 p-4 transition-colors hover:border-slate-400 sm:p-6"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium">
-                    {p.name.slice(0, 1)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-sm font-medium">{p.name}</h3>
-                    <p className="mt-0.5 text-xs text-slate-600">
-                      {p.defaultCurrency} · {p.accounts.length}{" "}
-                      {p.accounts.length === 1 ? "cuenta" : "cuentas"}
-                    </p>
+            {managedPeople.map((p) => {
+              const negative = p.totalBalance < -0.004;
+              return (
+                <Link
+                  key={p.id}
+                  href={`/personas/${p.slug}`}
+                  className="panel group flex min-w-0 flex-col transition-[border-color,scale] duration-140 hover:border-line-strong/60 active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3 p-4 sm:p-5">
+                    <Avatar name={p.name} seed={p.id} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-base font-medium">
+                        {p.name}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-ink-3">
+                        {p.accounts.length}{" "}
+                        {p.accounts.length === 1 ? "cuenta" : "cuentas"} ·{" "}
+                        {p.defaultCurrency}
+                      </p>
+                    </div>
+                    <ArrowUpRight className="size-4 shrink-0 text-ink-3 transition-colors group-hover:text-accent" />
                   </div>
-                  <ArrowUpRight className="size-4 shrink-0 text-slate-500 group-hover:text-slate-900" />
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-slate-600">Saldo disponible</p>
-                  <p className="mt-1 break-words text-2xl font-semibold tracking-tight tabular-nums">
-                    {formatMoney(p.totalBalance, p.defaultCurrency)}
-                  </p>
-                  {p.totalBalance < -0.004 && (
-                    <span className="mt-2 inline-block rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-800">
-                      Saldo a tu favor
+                  <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+                    <p className="text-xs text-ink-3">Saldo disponible</p>
+                    <div className="mt-1 flex flex-wrap items-baseline justify-between gap-2">
+                      <p
+                        className={`num break-words text-[1.75rem] font-medium leading-tight ${negative ? "text-danger-ink" : ""}`}
+                      >
+                        {formatMoney(p.totalBalance, p.defaultCurrency)}
+                      </p>
+                      {negative && <Tag tone="danger">Saldo a tu favor</Tag>}
+                    </div>
+                  </div>
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2 rounded-b-surface border-t border-line bg-subtle px-4 py-2.5 text-xs text-ink-2 sm:px-5">
+                    <span className="inline-flex min-w-0 items-center gap-2">
+                      <Wallet className="size-3.5 shrink-0 text-ink-3" />
+                      <span className="truncate">
+                        {p.accounts.map((a) => a.name).join(" · ") ||
+                          "Sin subcuentas"}
+                      </span>
                     </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3 text-xs text-slate-600">
-                  <span className="inline-flex min-w-0 items-center gap-2">
-                    <Wallet className="size-3 shrink-0" />
-                    <span className="truncate">
-                      {p.accounts.map((a) => a.name).join(" · ") ||
-                        "Sin subcuentas"}
-                    </span>
-                  </span>
-                  {p.shareEnabled && (
-                    <span className="inline-flex items-center gap-1">
-                      <Share2 className="size-3" />
-                      Compartido
-                    </span>
-                  )}
-                </div>
-              </Link>
-            ))}
+                    {p.shareEnabled && <SharedTag />}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </section>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <section
-          aria-labelledby="pending-heading"
-          className="panel min-w-0 overflow-hidden"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4 sm:p-6">
-            <div>
-              <h2 id="pending-heading" className="text-base font-medium">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <section aria-labelledby="pending-heading" className="panel min-w-0">
+          <PanelHeader
+            id="pending-heading"
+            icon={Clock3}
+            title={
+              <>
                 Pendientes de pago
-              </h2>
-              <p className="mt-1 text-xs text-slate-600">
-                Del mes y de períodos anteriores.
-              </p>
-            </div>
-            <Link
-              href={`/pagos?periodo=${period}`}
-              className="btn-ghost px-2 text-xs"
-            >
-              Ver todos ({pendingBills.length})<ArrowRight className="size-3" />
-            </Link>
-          </div>
+                {pendingBills.length > 0 && (
+                  <Tag tone="warning">{pendingBills.length}</Tag>
+                )}
+              </>
+            }
+            description="Del mes y de períodos anteriores."
+            action={
+              <Link
+                href={`/pagos?periodo=${period}`}
+                className="btn-ghost min-h-9 px-2.5"
+              >
+                Ver todos
+                <ArrowRight className="size-4" />
+              </Link>
+            }
+          />
           {pendingBills.length === 0 ? (
             <div className="flex flex-col items-center gap-3 p-8 text-center">
-              <CheckCircle2 className="size-8 text-slate-500" />
+              <span className="flex size-12 items-center justify-center rounded-full border border-success-line bg-success-soft text-success">
+                <CheckCircle2 className="size-5" />
+              </span>
               <p className="text-sm font-medium">
                 No tenés pagos pendientes cargados
               </p>
-              <Link
-                href={`/pagos?periodo=${period}`}
-                className="btn-secondary text-xs"
-              >
+              <Link href={`/pagos?periodo=${period}`} className="btn-secondary">
                 Revisar gastos del mes
               </Link>
             </div>
           ) : (
-            <div className="divide-y divide-slate-200">
+            <div className="divide-y divide-line">
               {pendingBills.slice(0, 8).map((bill) => (
                 <Link
                   key={bill.id}
                   href={`/pagos?periodo=${bill.period}&persona=${bill.personId}`}
-                  className="flex flex-wrap items-center justify-between gap-3 p-4 hover:bg-slate-50 sm:px-6"
+                  className="flex items-center gap-3 px-4 py-3 transition-colors duration-100 last:rounded-b-surface hover:bg-subtle sm:px-5"
                 >
+                  <Avatar
+                    name={bill.person.name}
+                    seed={bill.personId}
+                    size="sm"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="break-words text-sm font-medium">
                       {bill.concept}
                     </p>
-                    <p className="mt-1 text-xs text-slate-600">
-                      {bill.person.name}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-3">
+                      <span>{bill.person.name}</span>
                       {bill.isCarryOver && (
-                        <span className="ml-2 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-amber-800">
-                          Pendiente de {formatShortPeriodLabel(bill.period)}
-                        </span>
+                        <CarryOverTag>
+                          De {formatShortPeriodLabel(bill.period)}
+                        </CarryOverTag>
                       )}
-                    </p>
+                    </div>
                   </div>
                   <div className="text-right tabular-nums">
-                    <p className="text-sm font-medium">
+                    <p
+                      className={`text-sm font-medium ${bill.amount === null ? "text-ink-3" : ""}`}
+                    >
                       {bill.amount !== null
                         ? formatMoney(bill.amount, "ARS")
                         : "Sin importe"}
                     </p>
-                    <p className="mt-1 text-xs text-slate-600">
+                    <p className="mt-1 text-xs text-ink-3">
                       {bill.dueDate
-                        ? formatDateAR(bill.dueDate)
+                        ? `Vence ${formatDateAR(bill.dueDate)}`
                         : "Sin vencimiento"}
                     </p>
                   </div>
@@ -264,43 +313,40 @@ export default async function DashboardPage() {
         </section>
 
         <div className="space-y-6">
-          <section
-            aria-labelledby="settlement-heading"
-            className="panel p-4 sm:p-6"
-          >
-            <span className="mb-4 inline-flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-              <Wallet className="size-4" />
-            </span>
-            <h2 id="settlement-heading" className="text-base font-medium">
-              Por descontar en cuenta
-            </h2>
-            <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              Gastos de {formatPeriodLabel(period).toLowerCase()} que todavía no
-              se registraron como egreso. No es lo mismo que un pago pendiente.
-            </p>
-            <div className="mt-4 divide-y divide-slate-200">
-              {unsettledByPerson.map(({ person, count, total }) => (
-                <Link
-                  key={person.id}
-                  href={`/pagos?periodo=${period}&tab=resumen&persona=${person.id}`}
-                  className="-mx-2 flex flex-wrap items-center justify-between gap-2 rounded-lg px-2 py-3 hover:bg-slate-50"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{person.name}</p>
-                    <p className="mt-1 text-xs text-slate-600 tabular-nums">
-                      {count} conceptos
-                    </p>
-                  </div>
-                  <span className="text-right text-sm font-medium tabular-nums">
-                    {formatMoney(total, "ARS")}
-                  </span>
-                </Link>
-              ))}
-            </div>
-            {unsettledByPerson.length === 0 && (
-              <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+          <section aria-labelledby="settlement-heading" className="panel">
+            <PanelHeader
+              id="settlement-heading"
+              icon={Wallet}
+              title="Por descontar en cuenta"
+              description={`Gastos de ${formatPeriodLabel(period).toLowerCase()} sin egreso registrado.`}
+            />
+            {unsettledByPerson.length === 0 ? (
+              <p className="m-4 rounded-control bg-subtle p-3 text-sm text-ink-2">
                 No hay gastos con importe pendientes de descontar.
               </p>
+            ) : (
+              <div className="divide-y divide-line">
+                {unsettledByPerson.map(({ person, count, total }) => (
+                  <Link
+                    key={person.id}
+                    href={`/pagos?periodo=${period}&tab=resumen&persona=${person.id}`}
+                    className="flex items-center gap-3 px-4 py-3 transition-colors duration-100 last:rounded-b-surface hover:bg-subtle sm:px-5"
+                  >
+                    <Avatar name={person.name} seed={person.id} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {person.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-ink-3 tabular-nums">
+                        {count} {count === 1 ? "concepto" : "conceptos"}
+                      </p>
+                    </div>
+                    <span className="text-right text-sm font-medium tabular-nums">
+                      {formatMoney(total, "ARS")}
+                    </span>
+                  </Link>
+                ))}
+              </div>
             )}
           </section>
 

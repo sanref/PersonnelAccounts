@@ -47,19 +47,23 @@ App Next.js 16 (App Router, React 19, Tailwind v4) para administrar cuentas, sal
 - `settledTransactionId` enlaza el ítem con el egreso creado en la subcuenta: no descontar ítems `SKIPPED` ni ya descontados.
 - El FK `monthly_items.service_id` es `ON DELETE SET NULL`: borrar del catálogo conserva los ítems históricos, por eso `deleteServiceAction` limpia antes las tombstones `SKIPPED`.
 
-## UI/UX (resumen de `AGENTS UI UX.md`)
+## UI/UX: sistema CUI
 
-`AGENTS UI UX.md` es un estándar genérico escrito para Angular: su sección 1 (standalone, signals, `@if`, OnPush…, archivos `.scss`) **no aplica**. Aplican las secciones 2–4 adaptadas a este repo:
+El diseño sigue el lenguaje de [CUI](https://github.com/yappologistic/CUI) (`docs/design.md`). CUI es una librería nativa en C, así que **no se instala**: sus tokens y componentes están portados a Tailwind en `src/app/globals.css` (`@theme`) y a React en `src/components/cui.tsx`. (`AGENTS UI UX.md` se descartó.)
 
-- Espaciado en múltiplos de 4/8 px (`p-4`/`p-5`, `gap-2/3/4`). Jerarquía por borde fino `border-slate-200` sobre `bg-slate-50`, tarjetas `bg-white`; nada de sombras difusas (`shadow-xs` en cards, `shadow-xl` solo en modales), gradientes ni **dark mode** (no existe ninguna variante `dark:` — no la agregues).
-- Radios reales del repo: `rounded-lg` (8px) inputs/botones/badges, `rounded-xl` (12px) paneles, `rounded-2xl` (16px) cards y modales. El doc pide 6px; seguí el repo.
-- Color: neutros slate; el acento es `bg-slate-900` sólido y se reserva al CTA principal de cada vista. Colores semánticos solo en badges con fondo suave (`emerald/amber/rose/indigo` en -50/-100).
-- Toda cifra, fecha o métrica: `tabular-nums` y alineación a la derecha en tablas.
-- Tablas sin bordes verticales, encabezado `text-xs uppercase` sobre `bg-slate-50`, separadores `divide-y`.
-- Acciones destructivas piden `confirm()`; botones solo-ícono llevan `title`/`aria-label`; targets táctiles `min-h-11` (se usa mucho desde el celular).
-- Reutilizá `src/components/ui-controls.tsx` (`ToggleSwitch`, `MoneyInput`, `InlineMoneyCell`) en lugar de crear inputs nuevos. Para el resto hay primitivas en `globals.css`: `.panel`, `.page-title`, `.eyebrow`, `.btn-primary`/`.btn-secondary`/`.btn-ghost`, `.icon-button`, `.field`/`.field-label`. No repitas esas combinaciones de utilidades a mano.
-- Estados: `src/components/ui-feedback.tsx` (`EmptyState`, `FeedbackBanner`) para vacío y error inline con reintento. Modales: `src/components/modal.tsx` (`<dialog>` nativo con foco, Escape y scroll lock) — no vuelvas a los overlays `fixed inset-0`.
-- Listados largos: tabla en `hidden md:block` + tarjetas equivalentes en `md:hidden` (ver `monthly-payments-client.tsx` y `payment-mobile-card.tsx`). El layout admin usa sidebar fijo en `lg` (`lg:pl-60`) y barra inferior en móvil: dejá `pb-32 lg:pb-8` y no pongas acciones flotantes sobre la barra.
+- **Tokens, no colores crudos.** Neutros: `bg-canvas` (lienzo), `bg-surface` (tarjeta), `bg-subtle` (cabeceras, thead), `bg-muted` (botón secundario, pistas), `border-line` / `border-line-strong`, texto `text-ink` / `ink-2` / `ink-3`. No uses `slate-*` en código nuevo.
+- **Acento azul** (`accent`, `accent-soft`, `accent-line`, `accent-ink`): CTA principal (`.btn-primary`), ítem seleccionado (nav, segmentado), foco, progreso. No lo uses como decoración.
+- **Estados con significado fijo**, siempre con ícono o etiqueta: `success` = pagado/ingreso, `warning` = pendiente, `orange` = arrastrado de meses anteriores, `danger` = vencido/egreso/borrar, `accent` = descontado/info, `iris` = compartido/deudas. Usá `PaidTag`, `PendingTag`, `CarryOverTag`, `SettledTag`, `SharedTag` o `<Tag tone>` de `cui.tsx`; no inventes badges ad-hoc.
+- **Personas**: `<Avatar name seed={person.id}>` da un tinte estable por persona (6 tonos). Ponelo junto al nombre en listas, filas y filtros para que cada persona se reconozca de un vistazo.
+- **Superficies**: lienzo gris → `.panel` blanco con borde fino (sin sombra) → `.panel-header` / `<PanelHeader>` gris con ícono, título y descripción. Sin cards dentro de cards: adentro, agrupá con `divide-line`. Solo las capas flotantes (popovers, modales) llevan `shadow-float`.
+- **Radios concéntricos**: `rounded-control` (10) botones/inputs, `rounded-panel` (14) avisos y paneles anidados, `rounded-surface` (18) cards y modales; `rounded-full` solo para avatares, switches y barras.
+- **Tipografía**: Inter para la interfaz, Geist (`font-display` / `.num`) para títulos y cifras grandes. Dos pesos: regular y `font-medium`. Sentence case, sin eyebrows en mayúsculas. Toda cifra con `tabular-nums`, alineada a la derecha en tablas.
+- **Primitivas** (`globals.css`): `.btn-primary` / `.btn-secondary` / `.btn-ghost` / `.btn-danger`, `.icon-button` (+ `.icon-button-danger`), `.field` / `.field-label`, `.tag-*`, `.alert` + `.alert-success|warning|danger|accent`, `.segmented` + `.segmented-item` (estado con `aria-pressed`/`aria-current`), `.data-table`, `.nav-item`, `.page-title`, `.num`. Componentes (`cui.tsx`): `Tag`, `Avatar`, `ProgressBar`, `PanelHeader`, `Stat`, `Segmented`.
+- **Movimiento**: hover 140 ms, presión `active:scale-[0.97]` (0.98 en cards anchas), popovers con `.cui-pop`; disabled = 45 % de opacidad. Respetar `prefers-reduced-motion` (ya global).
+- **Layout admin**: sidebar fijo en `lg` (`lg:pl-64`) con navegación y personas; barra superior en móvil/tablet con chips de persona; barra inferior en móvil. Dejá `pb-32 md:pb-8` y no pongas acciones flotantes sobre la barra.
+- Sin **dark mode** (ninguna variante `dark:`), sin gradientes, sin glow, sin sombras en elementos que apoyan sobre la página.
+- Acciones destructivas piden `confirm()`; botones solo-ícono llevan `title`/`aria-label`; targets táctiles `min-h-11`.
+- Reutilizá `src/components/ui-controls.tsx` (`ToggleSwitch`, `MoneyInput`, `InlineMoneyCell`), `ui-feedback.tsx` (`EmptyState`, `FeedbackBanner`) y `modal.tsx` (`<dialog>` nativo). No vuelvas a overlays `fixed inset-0`.
+- Listados largos: tabla en `hidden md:block` + tarjetas equivalentes en `md:hidden` (ver `monthly-payments-client.tsx` y `payment-mobile-card.tsx`).
 - `<MonthlyPaymentsClient>` lleva `key` por período/persona/tab en `pagos/page.tsx` para reiniciar filtros locales al navegar; no lo saques.
-- Todo interactivo necesita `hover`, `focus-visible` (definido global en `globals.css`) y estado `disabled`. Nunca datos de relleno tipo "Lorem ipsum" o cifras ficticias.
-- Sin librerías nuevas de UI: solo Tailwind + `lucide-react`. Pedí aprobación antes de sumar dependencias.
+- Nunca datos de relleno tipo "Lorem ipsum" o cifras ficticias. Sin librerías nuevas de UI: solo Tailwind + `lucide-react`. Pedí aprobación antes de sumar dependencias.

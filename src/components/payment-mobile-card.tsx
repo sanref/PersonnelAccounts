@@ -1,9 +1,16 @@
 "use client";
 
-import { ArrowDownToLine, CheckCircle2, Circle, Trash2 } from "lucide-react";
+import {
+  ArrowDownToLine,
+  CheckCircle2,
+  Circle,
+  FileClock,
+  Trash2,
+} from "lucide-react";
 import type { MonthlyItemRow } from "@/components/monthly-payments-client";
 import { formatShortPeriodLabel, shiftPeriod } from "@/lib/format";
 import { InlineMoneyCell } from "@/components/ui-controls";
+import { Avatar, CarryOverTag, SettledTag, Tag } from "@/components/cui";
 
 export function PaymentMobileCard({
   item,
@@ -32,43 +39,45 @@ export function PaymentMobileCard({
     item.billedPeriod ||
     (item.service?.paysInArrears ? shiftPeriod(item.period, -1) : item.period);
   return (
-    <article className="space-y-3 p-4">
+    <article
+      className={`space-y-3 p-4 ${item.isCarryOver ? "bg-orange-soft/40" : ""}`}
+    >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="text-xs text-slate-600">{item.person.name}</p>
-          <h3 className="break-words text-sm font-medium text-slate-900">
-            {item.concept}
-          </h3>
-          <div className="flex flex-wrap gap-1 text-xs">
-            {item.isCarryOver && (
-              <span className="rounded-md bg-amber-50 px-2 py-1 text-amber-800">
-                Pendiente de {formatShortPeriodLabel(item.period)}
-              </span>
-            )}
-            {isArrears && (
-              <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-600">
-                Factura de {formatShortPeriodLabel(billedPeriod)}
-              </span>
-            )}
-            {item.kind === "EXTRA" && (
-              <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-600">
-                Extra
-              </span>
-            )}
+        <div className="flex min-w-0 items-start gap-3">
+          <Avatar name={item.person.name} seed={item.personId} size="sm" />
+          <div className="min-w-0 space-y-1">
+            <p className="text-xs text-ink-3">{item.person.name}</p>
+            <h3 className="break-words text-sm font-medium text-ink">
+              {item.concept}
+            </h3>
+            <div className="flex flex-wrap gap-1">
+              {item.isCarryOver && (
+                <CarryOverTag>
+                  Pendiente de {formatShortPeriodLabel(item.period)}
+                </CarryOverTag>
+              )}
+              {isArrears && (
+                <Tag tone="neutral" icon={FileClock}>
+                  Factura de {formatShortPeriodLabel(billedPeriod)}
+                </Tag>
+              )}
+              {item.kind === "EXTRA" && <Tag tone="iris">Extra</Tag>}
+            </div>
           </div>
         </div>
         <button
           type="button"
           disabled={busy}
           onClick={onDelete}
-          className="icon-button -mr-2 hover:bg-rose-50 hover:text-rose-700"
+          className="icon-button icon-button-danger -mr-2"
           aria-label={`Quitar ${item.concept}`}
+          title={`Quitar ${item.concept}`}
         >
           <Trash2 className="size-4" />
         </button>
       </div>
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <label className="min-w-0 text-xs text-slate-600">
+        <label className="min-w-0 text-xs text-ink-3">
           Vencimiento
           <input
             key={item.dueDate ?? "sin-fecha"}
@@ -76,11 +85,11 @@ export function PaymentMobileCard({
             disabled={busy}
             defaultValue={item.dueDate ?? ""}
             onBlur={(e) => onDate(e.target.value)}
-            className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-2 text-right text-sm tabular-nums text-slate-700"
+            className="field mt-1 block px-2 text-right tabular-nums"
           />
         </label>
         <div className="min-w-0 text-right">
-          <p className="text-xs text-slate-600">Importe</p>
+          <p className="text-xs text-ink-3">Importe</p>
           <InlineMoneyCell
             disabled={busy}
             label={`Importe de ${item.concept}`}
@@ -89,13 +98,13 @@ export function PaymentMobileCard({
           />
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
         <button
           type="button"
           disabled={busy}
           onClick={onTogglePaid}
           aria-label={`${paid ? "Marcar pendiente" : "Marcar pagado"}: ${item.concept}`}
-          className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs font-medium ${paid ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}
+          className={`inline-flex min-h-11 items-center gap-2 rounded-control border px-3 text-sm font-medium transition-colors active:scale-[0.97] ${paid ? "border-success-line bg-success-soft text-success-ink hover:border-success" : "border-warning-line bg-warning-soft text-warning-ink hover:border-warning"}`}
         >
           {paid ? (
             <CheckCircle2 className="size-4" />
@@ -105,18 +114,18 @@ export function PaymentMobileCard({
           {paid ? "Pagado" : "Pendiente"}
         </button>
         {item.settledTransactionId ? (
-          <span className="text-right text-xs text-slate-600">
+          <SettledTag>
             Descontado
             {item.settledTransaction?.account.name
               ? ` · ${item.settledTransaction.account.name}`
               : ""}
-          </span>
+          </SettledTag>
         ) : canSettle ? (
           <button
             type="button"
             disabled={busy}
             onClick={onSettle}
-            className="btn-secondary text-xs"
+            className="btn-secondary px-3"
           >
             <ArrowDownToLine className="size-4" />
             Descontar en cuenta
@@ -124,7 +133,9 @@ export function PaymentMobileCard({
         ) : null}
       </div>
       {item.notes && (
-        <p className="break-words text-xs text-slate-600">{item.notes}</p>
+        <p className="break-words rounded-control bg-subtle px-3 py-2 text-xs text-ink-2">
+          {item.notes}
+        </p>
       )}
     </article>
   );

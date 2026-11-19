@@ -1,8 +1,73 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+/*
+ * Sistema visual basado en CUI (github.com/yappologistic/CUI, docs/design.md).
+ * CUI es una librería nativa en C: acá portamos sus tokens y componentes a Tailwind.
+ *  - Neutros para casi todo; el acento (azul) marca selección, foco, progreso y el CTA.
+ *  - Estados con tinte suave + borde del mismo tono + ícono o etiqueta, nunca solo color.
+ *  - Superficies por niveles: lienzo gris → tarjeta blanca con borde fino → cabecera gris.
+ *  - Radios concéntricos: control 10, panel 14, superficie 18.
+ */
+@theme {
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-geist-sans), var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Superficies y texto */
+  --color-canvas: #f4f4f5;
+  --color-surface: #ffffff;
+  --color-subtle: #f7f7f8;
+  --color-muted: #ededef;
+  --color-muted-hover: #e3e3e6;
+  --color-line: #e4e4e7;
+  --color-line-strong: #8d8d94;
+  --color-ink: #18181b;
+  --color-ink-2: #52525b;
+  --color-ink-3: #6b6b74;
+
+  /* Acento (CUI blue) */
+  --color-accent: #2b6cb8;
+  --color-accent-hover: #245c9e;
+  --color-accent-soft: #e5eef8;
+  --color-accent-line: #c5d8ee;
+  --color-accent-ink: #1d5290;
+
+  /* Estados */
+  --color-success: #13804f;
+  --color-success-soft: #e5f3eb;
+  --color-success-line: #c4e2d1;
+  --color-success-ink: #0d6a40;
+
+  --color-warning: #c27c0e;
+  --color-warning-soft: #f8efe0;
+  --color-warning-line: #ead7b5;
+  --color-warning-ink: #85500a;
+
+  --color-orange: #c45a26;
+  --color-orange-soft: #faebe3;
+  --color-orange-line: #f0d0bf;
+  --color-orange-ink: #a2441a;
+
+  --color-danger: #cc3633;
+  --color-danger-soft: #fbe9e8;
+  --color-danger-line: #f1cbc9;
+  --color-danger-ink: #b02b29;
+
+  --color-iris: #5f4bc4;
+  --color-iris-soft: #efecfb;
+  --color-iris-line: #d8d1f4;
+  --color-iris-ink: #5140ad;
+
+  /* Radios concéntricos (escalan con la raíz tipográfica del usuario) */
+  --radius-control: 0.625rem;
+  --radius-panel: 0.875rem;
+  --radius-surface: 1.125rem;
+
+  /* Solo las capas flotantes llevan sombra */
+  --shadow-float: 0 12px 32px rgb(24 24 27 / 0.12), 0 1px 3px rgb(24 24 27 / 0.06);
+  --shadow-rim: inset 0 1px 0 rgb(255 255 255 / 0.18);
+
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* En móvil arranca en "Grande" (17.5px) por defecto; en escritorio en "Normal" (16px) */
@@ -31,13 +96,10 @@ html[data-font="muy-grande"] {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family:
-    var(--font-geist-sans, Arial),
-    system-ui,
-    -apple-system,
-    sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
 }
 
 @layer base {
@@ -47,86 +109,231 @@ body {
   }
 
   :where(button, a, input, select, textarea, summary):focus-visible {
-    outline: 2px solid #475569;
-    outline-offset: 3px;
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 
   :where(button, input, select, textarea):disabled {
     cursor: not-allowed;
-    opacity: 0.5;
+    opacity: 0.45;
   }
 
   :where(button:enabled, summary) {
     cursor: pointer;
   }
 
-  :where(button, a, input, select, summary) {
-    transition-duration: 150ms;
+  :where(button, a, input, select, textarea, summary) {
+    transition-duration: 140ms;
     transition-timing-function: ease-out;
   }
 
   :where(input, select, textarea) {
     min-width: 0;
-    accent-color: #0f172a;
-  }
-
-  :where(th) {
-    letter-spacing: 0.04em;
+    accent-color: var(--color-accent);
   }
 
   ::selection {
-    background: #e2e8f0;
-    color: #0f172a;
+    background: var(--color-accent-soft);
+    color: var(--color-ink);
   }
 }
 
 @layer components {
+  /* ---------- Superficies ---------- */
   .panel {
-    @apply rounded-2xl border border-slate-300 bg-white;
+    @apply rounded-surface border border-line bg-surface;
+  }
+
+  /* Cabecera de tarjeta: franja gris con borde inferior (CUI "Tags" panel). */
+  .panel-header {
+    @apply flex flex-wrap items-center justify-between gap-3 rounded-t-surface border-b border-line bg-subtle px-4 py-3 sm:px-5;
+  }
+
+  .panel-title {
+    @apply flex items-center gap-2 text-sm font-medium text-ink;
   }
 
   .page-title {
-    @apply text-2xl font-semibold tracking-tight text-slate-900;
+    @apply font-display text-2xl font-medium tracking-tight text-ink sm:text-[1.75rem];
   }
 
+  /* CUI no usa eyebrows en mayúsculas: queda como texto de contexto discreto. */
   .eyebrow {
-    @apply text-xs font-semibold uppercase tracking-widest text-slate-600;
+    @apply text-sm text-ink-3;
   }
 
+  .num {
+    @apply font-display tabular-nums tracking-tight;
+  }
+
+  /* ---------- Botones ---------- */
   .btn-primary,
   .btn-secondary,
   .btn-ghost,
+  .btn-danger,
   .icon-button {
-    @apply inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors;
+    @apply inline-flex min-h-11 shrink-0 select-none items-center justify-center gap-2 rounded-control px-4 py-2 text-sm font-medium transition-[background-color,border-color,color,scale] active:scale-[0.97] disabled:active:scale-100;
   }
 
   .btn-primary {
-    @apply bg-slate-900 text-white hover:bg-slate-800;
+    @apply bg-accent text-white shadow-rim hover:bg-accent-hover;
   }
 
   .btn-secondary {
-    @apply border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50;
+    @apply bg-muted text-ink hover:bg-muted-hover;
   }
 
   .btn-ghost {
-    @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+    @apply text-ink-2 hover:bg-muted hover:text-ink;
+  }
+
+  .btn-danger {
+    @apply border border-danger-line bg-danger-soft text-danger-ink hover:border-danger hover:bg-danger-line/60;
   }
 
   .icon-button {
-    @apply min-w-11 px-2 text-slate-700 hover:bg-slate-100 hover:text-slate-900;
+    @apply min-w-11 px-2 text-ink-2 hover:bg-muted hover:text-ink;
   }
 
+  .icon-button-danger {
+    @apply hover:bg-danger-soft hover:text-danger-ink;
+  }
+
+  /* ---------- Campos ---------- */
   .field {
-    @apply min-h-11 w-full rounded-lg border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500;
+    @apply min-h-11 w-full rounded-control border border-line-strong/70 bg-surface px-3 py-2 text-sm text-ink transition-[border-color,box-shadow] placeholder:text-ink-3 hover:border-line-strong focus:border-accent focus:ring-3 focus:ring-accent/20 focus:outline-none;
   }
 
   .field-label {
-    @apply mb-1 block text-xs font-semibold text-slate-700;
+    @apply mb-1.5 block text-sm font-medium text-ink-2;
+  }
+
+  /* ---------- Tags / estados (CUI status tag) ---------- */
+  .tag {
+    @apply inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-0.5 text-xs font-medium tabular-nums;
+  }
+  .tag > svg {
+    @apply size-3.5 shrink-0;
+  }
+  .tag-neutral {
+    @apply border-line bg-muted text-ink-2;
+  }
+  .tag-accent {
+    @apply border-accent-line bg-accent-soft text-accent-ink;
+  }
+  .tag-success {
+    @apply border-success-line bg-success-soft text-success-ink;
+  }
+  .tag-warning {
+    @apply border-warning-line bg-warning-soft text-warning-ink;
+  }
+  .tag-orange {
+    @apply border-orange-line bg-orange-soft text-orange-ink;
+  }
+  .tag-danger {
+    @apply border-danger-line bg-danger-soft text-danger-ink;
+  }
+  .tag-iris {
+    @apply border-iris-line bg-iris-soft text-iris-ink;
+  }
+  .tag-solid {
+    @apply border-ink bg-ink text-white;
+  }
+
+  /* ---------- Avisos (CUI alert) ---------- */
+  .alert {
+    @apply flex items-start gap-3 rounded-panel border p-4 text-sm;
+  }
+  .alert-success {
+    @apply border-success-line bg-success-soft/70 text-success-ink;
+  }
+  .alert-warning {
+    @apply border-warning-line bg-warning-soft/70 text-warning-ink;
+  }
+  .alert-danger {
+    @apply border-danger-line bg-danger-soft/70 text-danger-ink;
+  }
+  .alert-accent {
+    @apply border-accent-line bg-accent-soft/70 text-accent-ink;
+  }
+
+  /* ---------- Avatar con tinte por persona ---------- */
+  .avatar {
+    @apply inline-flex shrink-0 select-none items-center justify-center rounded-full border font-medium;
+  }
+  .avatar[data-hue="0"] {
+    @apply border-[#b9dccb] bg-[#e0efe7] text-[#1b6644];
+  }
+  .avatar[data-hue="1"] {
+    @apply border-[#c0d4ec] bg-[#e2ecf7] text-[#245e9c];
+  }
+  .avatar[data-hue="2"] {
+    @apply border-[#efc4cd] bg-[#f9e3e8] text-[#a2334c];
+  }
+  .avatar[data-hue="3"] {
+    @apply border-[#e2cdb2] bg-[#f2e8dc] text-[#86501a];
+  }
+  .avatar[data-hue="4"] {
+    @apply border-[#d0c9ee] bg-[#e9e6f7] text-[#4f43a5];
+  }
+  .avatar[data-hue="5"] {
+    @apply border-[#b6dcd9] bg-[#dff0ee] text-[#16655e];
+  }
+
+  /* ---------- Control segmentado ---------- */
+  .segmented {
+    @apply inline-flex items-center gap-0.5 rounded-control bg-muted p-0.5;
+  }
+  .segmented-item {
+    @apply inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-ink-2 transition-[background-color,color] hover:text-ink;
+  }
+  .segmented-item[aria-current="page"],
+  .segmented-item[aria-pressed="true"],
+  .segmented-item[aria-selected="true"] {
+    @apply bg-surface text-ink shadow-xs;
+  }
+
+  /* ---------- Tablas ---------- */
+  .data-table thead {
+    @apply border-b border-line bg-subtle text-xs font-medium text-ink-3;
+  }
+  .data-table tbody {
+    @apply divide-y divide-line;
+  }
+  .data-table tbody tr {
+    @apply transition-colors duration-100 hover:bg-subtle;
+  }
+
+  /* ---------- Navegación ---------- */
+  .nav-item {
+    @apply flex min-h-11 items-center gap-3 rounded-control px-3 text-sm text-ink-2 transition-colors hover:bg-muted hover:text-ink;
+  }
+  .nav-item[aria-current="page"] {
+    @apply bg-accent-soft font-medium text-accent-ink;
   }
 
   .mobile-safe-bottom {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
+}
+
+@keyframes cui-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+dialog[open] {
+  animation: cui-pop 340ms var(--ease-spring);
+}
+
+.cui-pop {
+  animation: cui-pop 280ms var(--ease-spring);
 }
 
 @media (prefers-reduced-motion: reduce) {

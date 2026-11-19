@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { FilterX } from "lucide-react";
+import { FilterX, History } from "lucide-react";
 import type { AccountSummary, LedgerRow } from "@/lib/queries";
 import { formatDateAR, formatMoney, formatPeriodLabel } from "@/lib/format";
+import { Tag } from "@/components/cui";
+
+const FILTER_FIELD =
+  "w-full min-h-9 rounded-lg border border-line-strong/60 bg-surface px-2 py-1 text-xs font-normal text-ink hover:border-line-strong focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/20";
 
 export function FamilyLedgerTable({
   rows,
@@ -43,10 +47,14 @@ export function FamilyLedgerTable({
     colPeriod !== "" || colConcept.trim() !== "" || colAccount !== "ALL" || colType !== "ALL";
 
   return (
-    <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-2">
-        <h2 className="text-base font-bold text-slate-900">
-          Historial de Movimientos ({filtered.length} de {rows.length})
+    <section className="panel overflow-hidden">
+      <div className="panel-header">
+        <h2 className="panel-title">
+          <History className="size-4 text-ink-3" aria-hidden="true" />
+          Historial de movimientos
+          <Tag tone="neutral">
+            {filtered.length} de {rows.length}
+          </Tag>
         </h2>
         {hasFilters && (
           <button
@@ -57,33 +65,34 @@ export function FamilyLedgerTable({
               setColAccount("ALL");
               setColType("ALL");
             }}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 cursor-pointer"
+            className="btn-ghost icon-button-danger min-h-9 px-2.5 text-xs"
           >
-            <FilterX className="w-3.5 h-3.5" />
+            <FilterX className="size-3.5" />
             Limpiar filtros
           </button>
         )}
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs text-slate-600 border-b border-slate-200">
-            <tr className="uppercase">
-              <th className="text-left px-4 py-2.5 font-semibold">Fecha</th>
-              <th className="text-left px-4 py-2.5 font-semibold">Concepto</th>
+        <table className="data-table w-full text-sm">
+          <thead>
+            <tr>
+              <th className="px-4 py-2.5 text-left font-medium">Fecha</th>
+              <th className="px-4 py-2.5 text-left font-medium">Concepto</th>
               {accounts.length > 1 && (
-                <th className="text-left px-3 py-2.5 font-semibold">Cuenta</th>
+                <th className="px-3 py-2.5 text-left font-medium">Cuenta</th>
               )}
-              <th className="text-right px-4 py-2.5 font-semibold">Entrada</th>
-              <th className="text-right px-4 py-2.5 font-semibold">Salida</th>
-              <th className="text-right px-4 py-2.5 font-semibold">Saldo</th>
+              <th className="px-4 py-2.5 text-right font-medium">Entrada</th>
+              <th className="px-4 py-2.5 text-right font-medium">Salida</th>
+              <th className="px-4 py-2.5 text-right font-medium">Saldo</th>
             </tr>
-            <tr className="border-t border-slate-200/80 bg-slate-100/70">
+            <tr className="border-t border-line bg-canvas/60">
               <th className="px-3 py-2">
                 <select
                   value={colPeriod}
                   onChange={(e) => setColPeriod(e.target.value)}
-                  className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
+                  aria-label="Filtrar por período"
+                  className={FILTER_FIELD}
                 >
                   <option value="">Todo período</option>
                   {availableMonths.map((ym) => (
@@ -99,7 +108,8 @@ export function FamilyLedgerTable({
                   value={colConcept}
                   onChange={(e) => setColConcept(e.target.value)}
                   placeholder="Filtrar concepto..."
-                  className="w-full min-w-32 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-800 focus:outline-none"
+                  aria-label="Filtrar por concepto"
+                  className={`${FILTER_FIELD} min-w-32 placeholder:text-ink-3`}
                 />
               </th>
               {accounts.length > 1 && (
@@ -111,7 +121,8 @@ export function FamilyLedgerTable({
                         e.target.value === "ALL" ? "ALL" : Number(e.target.value)
                       )
                     }
-                    className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
+                    aria-label="Filtrar por cuenta"
+                    className={FILTER_FIELD}
                   >
                     <option value="ALL">Todas</option>
                     {accounts.map((a) => (
@@ -128,7 +139,8 @@ export function FamilyLedgerTable({
                   onChange={(e) =>
                     setColType(e.target.value as "ALL" | "IN" | "OUT")
                   }
-                  className="w-full px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-700"
+                  aria-label="Filtrar por tipo"
+                  className={FILTER_FIELD}
                 >
                   <option value="ALL">Entradas y Salidas</option>
                   <option value="IN">Solo Entradas</option>
@@ -139,39 +151,46 @@ export function FamilyLedgerTable({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-200 tabular-nums">
+          <tbody className="tabular-nums">
             {filtered.map((row) => {
               const isPos = row.signedAmount > 0;
+              const negRun = row.runningBalance < -0.004;
               return (
                 <tr key={row.id}>
-                  <td className="px-4 py-2.5 whitespace-nowrap text-xs text-slate-600">
+                  <td className="whitespace-nowrap px-4 py-2.5 text-xs text-ink-3">
                     {formatDateAR(row.date, row.dateUnknown)}
                   </td>
                   <td className="px-4 py-2.5">
-                    <div className="font-medium text-slate-900">{row.concept}</div>
-                    {row.affectsDebt && (
-                      <span className="mr-2 inline-block rounded bg-indigo-50 px-1.5 py-0.5 text-[0.6875rem] text-indigo-800">
-                        Préstamo
-                      </span>
-                    )}
-                    {row.refAmount && row.refCurrency && (
-                      <span className="text-xs text-slate-600">
-                        Ref: {formatMoney(row.refAmount, row.refCurrency)}
-                      </span>
+                    <div className="font-medium text-ink">{row.concept}</div>
+                    {(row.affectsDebt || (row.refAmount && row.refCurrency)) && (
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        {row.affectsDebt && <Tag tone="iris">Préstamo</Tag>}
+                        {row.refAmount && row.refCurrency && (
+                          <span className="text-xs text-ink-3">
+                            Ref: {formatMoney(row.refAmount, row.refCurrency)}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </td>
                   {accounts.length > 1 && (
-                    <td className="px-3 py-2.5 text-xs text-slate-600">
+                    <td className="px-3 py-2.5 text-xs text-ink-2">
                       {row.accountName}
                     </td>
                   )}
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap font-semibold text-emerald-600">
+                  <td
+                    className={`whitespace-nowrap px-4 py-2.5 text-right font-medium ${isPos ? "text-success-ink" : "text-ink-3"}`}
+                  >
                     {isPos ? formatMoney(row.amount, defaultCurrency) : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap font-semibold text-rose-600">
+                  <td
+                    className={`whitespace-nowrap px-4 py-2.5 text-right font-medium ${!isPos ? "text-danger-ink" : "text-ink-3"}`}
+                  >
                     {!isPos ? formatMoney(row.amount, defaultCurrency) : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap font-semibold text-slate-800">
+                  <td
+                    className={`whitespace-nowrap px-4 py-2.5 text-right font-medium ${negRun ? "text-danger-ink" : "text-ink"}`}
+                  >
                     {formatMoney(row.runningBalance, defaultCurrency)}
                   </td>
                 </tr>

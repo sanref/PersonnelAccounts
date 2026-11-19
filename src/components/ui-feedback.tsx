@@ -12,18 +12,19 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
-      <span className="flex size-12 items-center justify-center rounded-xl border border-slate-300 bg-slate-100 text-slate-600">
+      <span className="flex size-12 items-center justify-center rounded-full border border-accent-line bg-accent-soft text-accent">
         <Inbox className="size-5" aria-hidden="true" />
       </span>
       <div className="max-w-sm space-y-1">
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        <p className="text-sm text-slate-600">{description}</p>
+        <h2 className="text-sm font-medium text-ink">{title}</h2>
+        <p className="text-sm text-ink-2">{description}</p>
       </div>
       {action}
     </div>
   );
 }
 
+/** Aviso inline (CUI alert): éxito o error, con reintento y cierre opcionales. */
 export function FeedbackBanner({
   message,
   error = false,
@@ -41,21 +42,17 @@ export function FeedbackBanner({
   return (
     <div
       role={error ? "alert" : "status"}
-      className={`flex items-start gap-3 rounded-xl border p-4 text-sm ${
-        error
-          ? "border-rose-200 bg-rose-50 text-rose-900"
-          : "border-emerald-200 bg-emerald-50 text-emerald-900"
-      }`}
+      className={`alert cui-pop ${error ? "alert-danger" : "alert-success"}`}
     >
       <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <div className="min-w-0 flex-1 space-y-2">
-        <p>{message}</p>
+        <p className="text-ink">{message}</p>
         {onRetry && (
           <button
             type="button"
             disabled={busy}
             onClick={onRetry}
-            className="min-h-11 rounded-lg px-2 font-medium underline underline-offset-4"
+            className="btn-secondary min-h-9 px-3"
           >
             Reintentar
           </button>
@@ -67,6 +64,7 @@ export function FeedbackBanner({
           onClick={onDismiss}
           className="icon-button -my-2 -mr-2"
           aria-label="Cerrar aviso"
+          title="Cerrar aviso"
         >
           <X className="size-4" />
         </button>
